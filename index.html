@@ -2,123 +2,99 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Time Remastered 3D FPS</title>
+  <title>Time Remastered</title>
   <link rel="stylesheet" href="style.css" />
 </head>
-<
-  <div id="hud">
-  <span id="hudTime">Time: 0</span>
-  <span id="hudRen">Ren: 0</span>
-</div>
->
-
-  <canvas id="gameCanvas"></canvas>
-
-  <!-- UI -->
-  <div id="ui">
-    <h1>Time Remastered</h1>
-
-    <div class="panel">
-      <h3>Stats</h3>
-      <div>Time: <span id="time">0</span></div>
-      <div>Ren: <span id="ren">0</span></div>
-      <div>Time/sec: <span id="tps">0</span></div>
-      <div>Playtime: <span id="playtime">0</span> s</div>
-    </div>
-
-    <div class="panel">
-      <h3>Your Save</h3>
-      <input id="playerNameInput" placeholder="Save name" />
-      <button id="saveNameBtn">Set Name</button>
-      <div class="hint">Name must be unique.</div>
-
-      <div class="panel-line"></div>
-
-      <div>Save ID:</div>
-      <input id="saveIdDisplay" readonly />
-    </div>
-
-    <div class="panel">
-      <h3>Save / Load</h3>
-      <button id="saveBtn">Save</button>
-      <button id="loadBtn">Load</button>
-
-      <div class="panel-line"></div>
-
-      <button id="exportBtn">Export</button>
-      <button id="importBtn">Import</button>
-      <textarea id="saveText"></textarea>
+<body>
+  <!-- Loading Screen -->
+  <div id="loadingScreen">
+    <div id="loadingBox">
+      <div id="loadingTitle">Time Remastered</div>
+      <div id="loadingSpinner"></div>
+      <div id="loadingText">Loading...</div>
     </div>
   </div>
 
-  <!-- Name Wall -->
-  <div id="nameWall">
-    <h2>Name Wall</h2>
-    <div id="nameWallList">Loading…</div>
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <span id="hudTime">Time: 0</span>
+    <span id="hudRen">Ren: 0</span>
+  </div>
+
+  <!-- Conversion Panel -->
+  <div id="convertPanel">
+    <button id="convertBtn">Convert Time → Ren</button>
+    <div id="convertHint">Converts 100 Time into 1 Ren</div>
   </div>
 
   <!-- Interact Prompt -->
   <div id="interactPrompt" class="hidden">Press E</div>
 
-  <!-- Context Menu -->
-  <div id="contextMenu" class="menu hidden">
-    <div class="menu-inner">
-      <div class="menu-header">
+  <!-- Name Wall -->
+  <div id="nameWall">
+    <div id="nameWallTitle">Name Wall</div>
+    <div id="nameWallList">Loading...</div>
+  </div>
+
+  <!-- Context Menu / GUIs -->
+  <div id="contextMenu" class="hidden">
+    <div id="contextInner">
+      <div id="contextHeader">
         <span id="contextTitle">Menu</span>
-        <button id="closeContextBtn">X</button>
+        <button id="closeContextBtn">✕</button>
       </div>
-      <div class="menu-content">
-        <div class="menu-page" data-page="quests">
-          <h3>Quests</h3>
-          <p>Coming soon.</p>
-        </div>
 
-        <div class="menu-page hidden" data-page="codes">
-          <h3>Codes</h3>
-          <input id="codeInput" placeholder="Enter code" />
-          <button id="redeemCodeBtn">Redeem</button>
-          <div id="codeMessage" class="hint"></div>
-        </div>
+      <!-- Pages -->
+      <div class="menu-page" data-page="quests">
+        <h2>Quests</h2>
+        <p>Reach certain Time milestones to earn Ren.</p>
+        <ul id="questList"></ul>
+      </div>
 
-        <div class="menu-page hidden" data-page="settings">
-          <h3>Settings</h3>
-          <p>Coming soon.</p>
-        </div>
+      <div class="menu-page" data-page="codes">
+        <h2>Codes</h2>
+        <p>Redeem special codes for rewards.</p>
+        <input id="codeInput" placeholder="Enter code" />
+        <button id="redeemCodeBtn">Redeem</button>
+        <div id="codeMessage" class="menuMessage"></div>
+      </div>
 
-        <div class="menu-page hidden" data-page="achievements">
-          <h3>Achievements</h3>
-          <p>Coming soon.</p>
-        </div>
+      <div class="menu-page" data-page="enchant">
+        <h2>Enchant</h2>
+        <p>Spend Ren to boost Time/sec.</p>
+        <div>Current Enchant Cost: <span id="enchantCost">100</span> Ren</div>
+        <button id="enchantBtn">Enchant</button>
+        <div id="enchantMessage" class="menuMessage"></div>
+      </div>
 
-        <div class="menu-page hidden" data-page="enchant">
-          <h3>Enchant</h3>
-          <p>Cost: <span id="enchantCost">100</span> Ren</p>
-          <button id="enchantBtn">Enchant</button>
-          <div id="enchantMessage" class="hint"></div>
-        </div>
+      <div class="menu-page" data-page="achievements">
+        <h2>Achievements</h2>
+        <ul id="achievementList"></ul>
+      </div>
 
-        <div class="menu-page hidden" data-page="name">
-          <h3>Change Name</h3>
-          <input id="menuNameInput" placeholder="Save name" />
-          <button id="menuNameBtn">Set Name</button>
-        </div>
+      <div class="menu-page" data-page="name">
+        <h2>Save Name</h2>
+        <p>Set a unique public name for your save.</p>
+        <input id="menuNameInput" placeholder="Save Name (unique)" />
+        <button id="menuNameBtn">Set / Change Name</button>
+        <div class="menuMessage" id="nameMessage"></div>
+        <div class="menuSubNote">Your secret Save ID is stored locally.</div>
       </div>
     </div>
   </div>
 
-  <!-- Three.js -->
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-
-  <!-- Back4App -->
-  <script src="https://npmcdn.com/parse/dist/parse.min.js"></script>
+  <!-- Parse / Back4App -->
+  <script src="https://unpkg.com/parse/dist/parse.min.js"></script>
   <script>
-    Parse.initialize(
-      "ogmS1bciV4vu7ela41MyzbNUKPUCWv72WDv7iMn9",
-      "5GdY7Bdj7OQHEBVYqJic0tnofKCMqITehVKhiapM"
-    );
-    Parse.serverURL = "https://parseapi.back4app.com";
+    // TODO: replace with your real Back4App keys
+    Parse.initialize("YOUR_APP_ID", "YOUR_JS_KEY");
+    Parse.serverURL = "https://parseapi.back4app.com/";
   </script>
 
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
