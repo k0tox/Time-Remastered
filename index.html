@@ -44,11 +44,11 @@
   </div>
 
   <!-- Leaderboard Window -->
-  <div id="leaderboardWindow" class="hidden">
-    <div id="leaderboardInner">
-      <div id="leaderboardHeader">
+  <div id="leaderboardWindow" class="hidden overlay">
+    <div id="leaderboardInner" class="window">
+      <div id="leaderboardHeader" class="window-header">
         <span>Time Remastered — Leaderboard & Save</span>
-        <button id="leaderboardCloseBtn">✕</button>
+        <button id="leaderboardCloseBtn" class="window-close">✕</button>
       </div>
 
       <div class="lb-section">
@@ -69,11 +69,11 @@
   </div>
 
   <!-- Enchant Window -->
-  <div id="enchantWindow" class="hidden">
-    <div id="enchantInner">
-      <div id="enchantHeader">
+  <div id="enchantWindow" class="hidden overlay">
+    <div id="enchantInner" class="window">
+      <div id="enchantHeader" class="window-header">
         <span>Time Remastered — Enchant Table</span>
-        <button id="enchantCloseBtn">✕</button>
+        <button id="enchantCloseBtn" class="window-close">✕</button>
       </div>
 
       <p>Roll for an enchant rank. Higher ranks give huge Time/sec boosts.</p>
@@ -99,14 +99,36 @@
         <span id="enchantEffectiveTPSLabel">0</span>
       </div>
       <div class="enchant-row">
-        <span>Next Enchant Cost:</span>
-        <span id="enchantCostLabel">10</span> Ren
+        <span>Rolls:</span>
+        <span id="enchantRollsLabel">0</span>
+      </div>
+      <div class="enchant-row">
+        <span>Cost:</span>
+        <span id="enchantCostLabel">1 Roll</span>
       </div>
 
       <button id="enchantBtn">Roll Enchant</button>
       <div id="enchantMessage" class="lb-message"></div>
 
       <button id="enchantCloseBottomBtn" class="lb-close-bottom">Close</button>
+    </div>
+  </div>
+
+  <!-- NPC Dialog Window -->
+  <div id="npcWindow" class="hidden overlay">
+    <div id="npcInner" class="window">
+      <div class="window-header">
+        <span id="npcTitle">NPC</span>
+        <button id="npcCloseBtn" class="window-close">✕</button>
+      </div>
+      <div id="npcText" class="npc-text">
+        ...
+      </div>
+      <div class="npc-buttons">
+        <button id="npcGiveTimeBtn">Give 100 Time (get 2 Ren)</button>
+        <button id="npcTakeTimeBtn">Take 100 Time (lose 1 Ren)</button>
+      </div>
+      <button id="npcCloseBottomBtn" class="lb-close-bottom">Close</button>
     </div>
   </div>
 
