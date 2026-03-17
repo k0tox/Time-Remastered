@@ -276,6 +276,22 @@ body {
   color: #fff;
 }
 
+/* Shop */
+#shopItems {
+  font-size: 13px;
+}
+
+#shopItems button {
+  margin-top: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: none;
+  background: #3a7afe;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 /* Loading Screen */
 #loadingScreen {
   position: fixed;
