@@ -1,1 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Time Remastered 3D</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 3D canvas -->
+  <canvas id="gameCanvas"></canvas>
 
+  <!-- Loading screen -->
+  <div id="loadingScreen">
+    <div id="loadingLogo">Time Remastered</div>
+    <div id="loadingSub">Booting your timeline…</div>
+  </div>
+
+  <!-- UI -->
+  <div id="ui">
+    <h1>Time Remastered</h1>
+
+    <div class="panel">
+      <h3>Stats</h3>
+      <div>Time: <span id="time">0</span></div>
+      <div>Ren: <span id="ren">0</span></div>
+      <div>Time/sec: <span id="tps">0</span></div>
+      <div>Playtime: <span id="playtime">0</span> s</div>
+      <div class="hint">Move: WASD, Jump: Space, Interact: E</div>
+    </div>
+
+    <div class="panel">
+      <h3>Your Save</h3>
+      <div>Save Name (unique):</div>
+      <input id="playerNameInput" placeholder="Enter save name" />
+      <button id="saveNameBtn">Set / Change Name</button>
+      <div class="hint">You cannot use a name that is already taken.</div>
+
+      <div class="panel-line"></div>
+
+      <div>Your Save ID (secret):</div>
+      <input id="saveIdDisplay" readonly />
+      <div class="hint">Obfuscated ID that links to your data.</div>
+    </div>
+
+    <div class="panel">
+      <h3>Save / Load</h3>
+      <button id="saveBtn">Save (local + online)</button>
+      <button id="loadBtn">Load (local)</button>
+
+      <div class="panel-line"></div>
+
+      <button id="exportBtn">Export Save String</button>
+      <button id="importBtn">Import Save String</button>
+      <textarea id="saveText" placeholder="Exported save here / paste to import"></textarea>
+    </div>
+  </div>
+
+  <!-- Name wall -->
+  <div id="nameWall">
+    <h2>Name Wall (Taken Names)</h2>
+    <div id="nameWallList">Loading…</div>
+  </div>
+
+  <!-- Interact prompt -->
+  <div id="interactPrompt" class="hidden">Press E to interact</div>
+
+  <!-- Context GUI (opened by E near tables) -->
+  <div id="contextMenu" class="menu hidden">
+    <div class="menu-inner">
+      <div class="menu-header">
+        <span id="contextTitle">Menu</span>
+        <button id="closeContextBtn">X</button>
+      </div>
+      <div class="menu-content">
+        <!-- Quest -->
+        <div class="menu-page" data-page="quests">
+          <h3>Quest Book</h3>
+          <p>Quests will be added later. For now, explore zones and grow your Time.</p>
+        </div>
+
+        <!-- Codes -->
+        <div class="menu-page hidden" data-page="codes">
+          <h3>Codes</h3>
+          <p>Redeem codes:</p>
+          <input id="codeInput" placeholder="Enter code" />
+          <button id="redeemCodeBtn">Redeem</button>
+          <div id="codeMessage" class="hint"></div>
+        </div>
+
+        <!-- Settings -->
+        <div class="menu-page hidden" data-page="settings">
+          <h3>Settings</h3>
+          <p>Basic settings (placeholder):</p>
+          <label>
+            <input type="checkbox" id="toggleMusic" />
+            Music (coming soon)
+          </label>
+        </div>
+
+        <!-- Achievements -->
+        <div class="menu-page hidden" data-page="achievements">
+          <h3>Achievements</h3>
+          <p>Achievements will track milestones like Time, Ren, and playtime.</p>
+        </div>
+
+        <!-- Enchant -->
+        <div class="menu-page hidden" data-page="enchant">
+          <h3>Enchant Table</h3>
+          <p>Spend Ren to boost your Time/sec.</p>
+          <p>Cost: <span id="enchantCost">100</span> Ren</p>
+          <button id="enchantBtn">Enchant</button>
+          <div id="enchantMessage" class="hint"></div>
+        </div>
+
+        <!-- Name change -->
+        <div class="menu-page hidden" data-page="name">
+          <h3>Change Name</h3>
+          <p>Change your unique save name.</p>
+          <input id="menuNameInput" placeholder="Enter save name" />
+          <button id="menuNameBtn">Set / Change Name</button>
+          <div class="hint">Name must be unique. No stealing others.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three.js -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <!-- Parse / Back4App SDK -->
+  <script src="https://npmcdn.com/parse/dist/parse.min.js"></script>
+  <script>
+    Parse.initialize(
+      "ogmS1bciV4vu7ela41MyzbNUKPUCWv72WDv7iMn9",
+      "5GdY7Bdj7OQHEBVYqJic0tnofKCMqITehVKhiapM"
+    );
+    Parse.serverURL = "https://parseapi.back4app.com";
+  </script>
+
+  <!-- Game logic -->
+  <script src="game.js"></script>
+</body>
+</html>
