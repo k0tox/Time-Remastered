@@ -48,7 +48,7 @@ const SAVE_ID_KEY = "time_remastered_back4app_id_v3";
 let saveId = "";
 let playerSaveName = "";
 
-// Enchant ranks
+// Enchant ranks F → N
 const enchantRanks = [
   { id: "F",  bonus: 0,    weight: 40 },
   { id: "E",  bonus: 25,   weight: 20 },
@@ -66,7 +66,7 @@ let enchantRankIndex = 0;
 let enchantCost = 10;
 
 // Zones: tunnel with portals
-// multipliers: 0:0.5, 1:1.5, 2:2, 3:4, 4:7.5, 5:10
+// boosts: zone0 x0.5, zone1 x1.5, zone2 x2, zone3 x4, zone4 x7.5, zone5 x10
 const zones = [
   { id: 0, name: "Zone 0 — Lobby",   multiplier: 0.5,  requiredTime: 0,      z: 0,   color: 0x283046 },
   { id: 1, name: "Zone 1 — Ember",   multiplier: 1.5,  requiredTime: 100,    z: -15, color: 0x305a46 },
@@ -286,6 +286,39 @@ function updateEnchantUI() {
 }
 
 // =========================
+// GUI SYSTEM (CLEAN + FIXED)
+// =========================
+let menuOpen = false;
+
+function openGUI(element) {
+  menuOpen = true;
+  element.classList.remove("hidden");
+  document.exitPointerLock();
+}
+
+function closeGUI(element) {
+  if (!element.classList.contains("hidden")) {
+    element.classList.add("hidden");
+  }
+  menuOpen = false;
+}
+
+// Close on ESC
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Escape") {
+    closeGUI(leaderboardWindow);
+    closeGUI(enchantWindow);
+  }
+});
+
+// X / Close buttons
+leaderboardCloseBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
+leaderboardCloseBottomBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
+
+enchantCloseBtn.addEventListener("click", () => closeGUI(enchantWindow));
+enchantCloseBottomBtn.addEventListener("click", () => closeGUI(enchantWindow));
+
+// =========================
 // BUTTON HANDLERS
 // =========================
 convertBtn.addEventListener("click", () => {
@@ -299,16 +332,6 @@ convertBtn.addEventListener("click", () => {
 openLeaderboardBtn.addEventListener("click", async () => {
   openGUI(leaderboardWindow);
   await loadLeaderboard();
-});
-
-leaderboardCloseBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
-leaderboardCloseBottomBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
-
-document.addEventListener("keydown", (e) => {
-  if (e.code === "Escape") {
-    closeGUI(leaderboardWindow);
-    closeGUI(enchantWindow);
-  }
 });
 
 saveNameBtn.addEventListener("click", async () => {
@@ -325,9 +348,6 @@ saveNameBtn.addEventListener("click", async () => {
   await loadLeaderboard();
   saveNameMessage.textContent = "Score submitted.";
 });
-
-enchantCloseBtn.addEventListener("click", () => closeGUI(enchantWindow));
-enchantCloseBottomBtn.addEventListener("click", () => closeGUI(enchantWindow));
 
 enchantBtn.addEventListener("click", () => {
   if (ren < enchantCost) {
@@ -459,7 +479,7 @@ addCeilingLight(0, -30);
 addCeilingLight(0, -50);
 addCeilingLight(0, -70);
 
-// Portals
+// Portals in tunnel
 const portalRadius = 2.5;
 const portalThickness = 0.4;
 const portals = [];
@@ -481,7 +501,7 @@ zones.forEach((z) => {
   portals.push({ zone: z, mesh: ring });
 });
 
-// Enchant table
+// Enchant table near Zone 1
 const enchantTable = new THREE.Mesh(
   new THREE.BoxGeometry(2.5, 1, 2.5),
   new THREE.MeshStandardMaterial({ color: 0x8e2de2 })
@@ -505,12 +525,11 @@ enchantLight.position.set(-4, 3, zones[1].z);
 scene.add(enchantLight);
 
 // =========================
-// FPS CAMERA + POINTER LOCK
+// FIXED FPS CAMERA + POINTER LOCK
 // =========================
 let yaw = 0;
 let pitch = 0;
 let pointerLocked = false;
-let menuOpen = false;
 
 canvas.addEventListener("click", () => {
   if (!menuOpen) canvas.requestPointerLock();
@@ -524,15 +543,15 @@ document.addEventListener("mousemove", (e) => {
   if (!pointerLocked) return;
 
   const sensitivity = 0.002;
+
   yaw -= e.movementX * sensitivity;
   pitch -= e.movementY * sensitivity;
 
   const maxPitch = Math.PI / 2 - 0.01;
-  if (pitch > maxPitch) pitch = maxPitch;
-  if (pitch < -maxPitch) pitch = -maxPitch;
+  pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
 
-  cameraHolder.rotation.y = yaw;
-  camera.rotation.x = pitch;
+  cameraHolder.rotation.y = yaw;   // left/right
+  camera.rotation.x = pitch;       // up/down
 });
 
 // =========================
@@ -542,7 +561,8 @@ const keys = {};
 document.addEventListener("keydown", (e) => {
   keys[e.code] = true;
 
-  if (e.code === "KeyE" && pointerLocked) {
+  // E to open enchant when close
+  if (e.code === "KeyE" && pointerLocked && !menuOpen) {
     const dx = enchantTable.position.x - cameraHolder.position.x;
     const dz = enchantTable.position.z - cameraHolder.position.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
@@ -664,28 +684,14 @@ function updateZoneAndPortals() {
 }
 
 // =========================
-// GUI OPEN/CLOSE
-// =========================
-function openGUI(element) {
-  menuOpen = true;
-  element.classList.remove("hidden");
-  document.exitPointerLock();
-}
-
-function closeGUI(element) {
-  if (!element.classList.contains("hidden")) {
-    element.classList.add("hidden");
-  }
-  menuOpen = false;
-}
-
-// =========================
 // LOADING SCREEN
 // =========================
 function hideLoadingScreen() {
   const loading = document.getElementById("loadingScreen");
   if (!loading) return;
+
   loading.classList.add("fadeOut");
+
   setTimeout(() => {
     if (loading && loading.parentNode) {
       loading.parentNode.removeChild(loading);
