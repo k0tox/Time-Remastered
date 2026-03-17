@@ -43,6 +43,11 @@ const npcTakeTimeBtn = document.getElementById("npcTakeTimeBtn");
 const npcCloseBtn = document.getElementById("npcCloseBtn");
 const npcCloseBottomBtn = document.getElementById("npcCloseBottomBtn");
 
+const shopWindow = document.getElementById("shopWindow");
+const shopCloseBtn = document.getElementById("shopCloseBtn");
+const shopCloseBottomBtn = document.getElementById("shopCloseBottomBtn");
+const shopItems = document.getElementById("shopItems");
+
 // =========================
 // GAME STATE
 // =========================
@@ -60,6 +65,9 @@ let playerSaveName = "";
 // rolls system
 let rolls = 0;
 let rollTimer = 0; // seconds
+
+// permanent shop bonus
+let permanentBonus = 0;
 
 // Enchant ranks F → N
 const enchantRanks = [
@@ -90,6 +98,13 @@ const zones = [
 let currentZone = 0;
 let zoneMultiplier = zones[0].multiplier;
 
+// shop inventory
+const shopInventory = [
+  { name: "Time Booster I", cost: 10, bonus: 0.10 },
+  { name: "Time Booster II", cost: 50, bonus: 0.25 },
+  { name: "Roll Generator", cost: 100, bonus: 0.0, rolls: 1 }
+];
+
 // =========================
 // UTIL
 // =========================
@@ -111,7 +126,7 @@ function getEnchantBonusPercent() {
 }
 
 function getBaseTimePerSecond() {
-  return 1 * (1 + getEnchantBonusPercent() / 100);
+  return (1 + permanentBonus) * (1 + getEnchantBonusPercent() / 100);
 }
 
 function getTimePerSecond() {
@@ -141,7 +156,8 @@ function getSaveData() {
     saveId,
     enchantRankIndex,
     rolls,
-    rollTimer
+    rollTimer,
+    permanentBonus
   };
 }
 
@@ -154,6 +170,7 @@ function applySaveData(d) {
   enchantRankIndex = d.enchantRankIndex ?? 0;
   rolls = d.rolls ?? 0;
   rollTimer = d.rollTimer ?? 0;
+  permanentBonus = d.permanentBonus ?? 0;
 
   playerNameInput.value = playerSaveName;
   updateHUD();
@@ -272,7 +289,7 @@ async function loadLeaderboard() {
 }
 
 // =========================
-// HUD & ENCHANT UI
+– HUD & ENCHANT UI
 // =========================
 function updateHUD() {
   hudTime.textContent = "Time: " + format(timeValue);
@@ -329,12 +346,15 @@ bindCloseButton(enchantCloseBtn, enchantWindow);
 bindCloseButton(enchantCloseBottomBtn, enchantWindow);
 bindCloseButton(npcCloseBtn, npcWindow);
 bindCloseButton(npcCloseBottomBtn, npcWindow);
+bindCloseButton(shopCloseBtn, shopWindow);
+bindCloseButton(shopCloseBottomBtn, shopWindow);
 
 document.addEventListener("keydown", (e) => {
   if (e.code === "Escape") {
     closeGUI(leaderboardWindow);
     closeGUI(enchantWindow);
     closeGUI(npcWindow);
+    closeGUI(shopWindow);
   }
 });
 
@@ -355,7 +375,7 @@ openLeaderboardBtn.addEventListener("click", async () => {
 });
 
 saveNameBtn.addEventListener("click", async () => {
-  const name = playerSaveNameInputValue();
+  const name = playerNameInput.value.trim();
   if (!name) {
     saveNameMessage.textContent = "Enter a name first.";
     return;
@@ -368,10 +388,6 @@ saveNameBtn.addEventListener("click", async () => {
   await loadLeaderboard();
   saveNameMessage.textContent = "Score submitted.";
 });
-
-function playerSaveNameInputValue() {
-  return playerNameInput.value.trim();
-}
 
 enchantBtn.addEventListener("click", () => {
   if (rolls < 1) {
@@ -407,6 +423,48 @@ npcTakeTimeBtn.addEventListener("click", () => {
   updateHUD();
 });
 
+// shop
+function openShop() {
+  shopItems.innerHTML = "";
+
+  shopInventory.forEach((item, i) => {
+    const div = document.createElement("div");
+    div.style.marginBottom = "10px";
+    div.innerHTML = `
+      <strong>${item.name}</strong><br>
+      Cost: ${item.cost} Ren<br>
+      <button data-i="${i}" class="shopBuyBtn">Buy</button>
+    `;
+    shopItems.appendChild(div);
+  });
+
+  document.querySelectorAll(".shopBuyBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = parseInt(btn.dataset.i);
+      buyShopItem(i);
+    });
+  });
+
+  openGUI(shopWindow);
+}
+
+function buyShopItem(i) {
+  const item = shopInventory[i];
+  if (ren < item.cost) {
+    alert("Not enough Ren!");
+    return;
+  }
+
+  ren -= item.cost;
+
+  if (item.rolls) rolls += item.rolls;
+  if (item.bonus) permanentBonus += item.bonus;
+
+  updateHUD();
+  updateEnchantUI();
+  alert(`Purchased ${item.name}!`);
+}
+
 // =========================
 // THREE.JS WORLD
 // =========================
@@ -425,7 +483,8 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 const cameraHolder = new THREE.Object3D();
-cameraHolder.position.set(0, 1.8, 5);
+// spawn FAR away from everything
+cameraHolder.position.set(0, 1.8, 40);
 scene.add(cameraHolder);
 cameraHolder.add(camera);
 
@@ -592,7 +651,7 @@ function createR15NPC(name, x, z, color = 0x4caf50) {
   head.position.set(0, 3.5, 0);
   group.add(head);
 
-  // Face (simple)
+  // Face
   const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x000000 });
   const eyeGeo = new THREE.BoxGeometry(0.1, 0.15, 0.02);
 
@@ -611,7 +670,7 @@ function createR15NPC(name, x, z, color = 0x4caf50) {
   mouth.position.set(0, 3.35, 0.61);
   group.add(mouth);
 
-  // Arms (upper + lower)
+  // Arms
   const upperArmGeo = new THREE.BoxGeometry(0.5, 0.9, 0.5);
   const lowerArmGeo = new THREE.BoxGeometry(0.45, 0.9, 0.45);
 
@@ -631,7 +690,7 @@ function createR15NPC(name, x, z, color = 0x4caf50) {
   rightLowerArm.position.set(1.15, 1.5, 0);
   group.add(rightLowerArm);
 
-  // Legs (upper + lower)
+  // Legs
   const upperLegGeo = new THREE.BoxGeometry(0.7, 1.0, 0.7);
   const lowerLegGeo = new THREE.BoxGeometry(0.65, 1.0, 0.65);
 
@@ -682,9 +741,10 @@ function createNameSprite(text) {
   return sprite;
 }
 
-// NPC instances
-createR15NPC("Chrono Guide", 6, -8, 0x4caf50);
-createR15NPC("Time Trader", -6, -25, 0x2196f3);
+// NPC instances (far away, separate area)
+createR15NPC("Chrono Guide", 6, -120, 0x4caf50);
+createR15NPC("Time Trader", -6, -120, 0x2196f3);
+createR15NPC("Shopkeeper", 0, -120, 0xffc107);
 
 // =========================
 // NPC DIALOG
@@ -728,8 +788,8 @@ document.addEventListener("mousemove", (e) => {
   const maxPitch = Math.PI / 2 - 0.01;
   pitch = Math.max(-maxPitch, Math.min(maxPitch, pitch));
 
-  cameraHolder.rotation.y = yaw;   // left/right
-  camera.rotation.x = pitch;       // up/down
+  cameraHolder.rotation.y = yaw;
+  camera.rotation.x = pitch;
 });
 
 // =========================
@@ -867,6 +927,8 @@ function updateZoneAndPortals() {
 const raycaster = new THREE.Raycaster();
 
 function interactRaycast() {
+  if (!pointerLocked || menuOpen) return;
+
   raycaster.setFromCamera({ x: 0, y: 0 }, camera);
   const intersects = raycaster.intersectObjects(npcs, true);
   if (intersects.length > 0) {
@@ -875,6 +937,10 @@ function interactRaycast() {
       npcGroup = npcGroup.parent;
     }
     if (npcGroup && npcGroup.userData.npcName) {
+      if (npcGroup.userData.npcName === "Shopkeeper") {
+        openShop();
+        return;
+      }
       openNPCDialog(npcGroup);
     }
   }
@@ -930,6 +996,8 @@ function init() {
   updateHUD();
   updateEnchantUI();
   loadLeaderboard();
+
+  lastSafePosition.copy(cameraHolder.position);
 
   lastTick = performance.now();
   setTimeout(hideLoadingScreen, 1200);
