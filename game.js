@@ -5,32 +5,34 @@ const canvas = document.getElementById("gameCanvas");
 
 const hudTime = document.getElementById("hudTime");
 const hudRen = document.getElementById("hudRen");
+const hudZone = document.getElementById("hudZone");
+const hudPortalInfo = document.getElementById("hudPortalInfo");
 
 const convertBtn = document.getElementById("convertBtn");
 
-const interactPrompt = document.getElementById("interactPrompt");
+const openLeaderboardBtn = document.getElementById("openLeaderboardBtn");
+const leaderboardWindow = document.getElementById("leaderboardWindow");
+const leaderboardCloseBtn = document.getElementById("leaderboardCloseBtn");
+const leaderboardCloseBottomBtn = document.getElementById("leaderboardCloseBottomBtn");
+
+const playerNameInput = document.getElementById("playerNameInput");
+const saveNameBtn = document.getElementById("saveNameBtn");
+const saveNameMessage = document.getElementById("saveNameMessage");
 
 const nameWallList = document.getElementById("nameWallList");
+const leaderboardList = document.getElementById("leaderboardList");
 
-const contextMenu = document.getElementById("contextMenu");
-const contextTitle = document.getElementById("contextTitle");
-const closeContextBtn = document.getElementById("closeContextBtn");
-const menuPages = document.querySelectorAll(".menu-page");
-
-const questList = document.getElementById("questList");
-const achievementList = document.getElementById("achievementList");
-
-const codeInput = document.getElementById("codeInput");
-const redeemCodeBtn = document.getElementById("redeemCodeBtn");
-const codeMessage = document.getElementById("codeMessage");
-
+const enchantWindow = document.getElementById("enchantWindow");
+const enchantCloseBtn = document.getElementById("enchantCloseBtn");
+const enchantCloseBottomBtn = document.getElementById("enchantCloseBottomBtn");
+const enchantRankLabel = document.getElementById("enchantRankLabel");
+const enchantBonusLabel = document.getElementById("enchantBonusLabel");
+const enchantBaseTPSLabel = document.getElementById("enchantBaseTPSLabel");
+const enchantZoneMultLabel = document.getElementById("enchantZoneMultLabel");
+const enchantEffectiveTPSLabel = document.getElementById("enchantEffectiveTPSLabel");
+const enchantCostLabel = document.getElementById("enchantCostLabel");
 const enchantBtn = document.getElementById("enchantBtn");
-const enchantCostSpan = document.getElementById("enchantCost");
 const enchantMessage = document.getElementById("enchantMessage");
-
-const menuNameInput = document.getElementById("menuNameInput");
-const menuNameBtn = document.getElementById("menuNameBtn");
-const nameMessage = document.getElementById("nameMessage");
 
 // =========================
 // GAME STATE
@@ -38,62 +40,97 @@ const nameMessage = document.getElementById("nameMessage");
 let timeValue = 0;
 let ren = 0;
 let totalPlaytime = 0;
-
-let enchantCost = 100;
-enchantCostSpan.textContent = enchantCost.toString();
-
-const SAVE_KEY = "time_remastered_full_local_v1";
-const LEADERBOARD_KEY = "time_remastered_leaderboard_v1";
-
-let playerSaveName = "";
 let lastTick = performance.now();
 
-// Quests / Achievements
-const quests = [
-  { id: "q1", label: "Reach 1,000 Time", target: 1000, rewardRen: 10, done: false },
-  { id: "q2", label: "Reach 10,000 Time", target: 10000, rewardRen: 50, done: false },
-  { id: "q3", label: "Reach 100,000 Time", target: 100000, rewardRen: 200, done: false }
+const SAVE_KEY = "time_remastered_back4app_save_v3";
+const SAVE_ID_KEY = "time_remastered_back4app_id_v3";
+
+let saveId = "";
+let playerSaveName = "";
+
+// Enchant ranks
+const enchantRanks = [
+  { id: "F",  bonus: 0,    weight: 40 },
+  { id: "E",  bonus: 25,   weight: 20 },
+  { id: "D",  bonus: 75,   weight: 12 },
+  { id: "C",  bonus: 150,  weight: 8 },
+  { id: "B",  bonus: 300,  weight: 6 },
+  { id: "A",  bonus: 600,  weight: 5 },
+  { id: "S",  bonus: 900,  weight: 4 },
+  { id: "S+", bonus: 1300, weight: 3 },
+  { id: "S++",bonus: 1900, weight: 1.5 },
+  { id: "N",  bonus: 2599, weight: 0.5 }
 ];
 
-const achievements = [
-  { id: "a1", label: "First Ren", condition: () => ren >= 1, unlocked: false },
-  { id: "a2", label: "Big Time: 50K+", condition: () => timeValue >= 50000, unlocked: false },
-  { id: "a3", label: "Enchanter", condition: () => enchantCost > 100, unlocked: false }
+let enchantRankIndex = 0; // start at F
+let enchantCost = 10;
+
+// Zones: tunnel with portals
+// multipliers: 0:0.5, 1:1.5, 2:2, 3:4, 4:7.5, 5:10
+const zones = [
+  { id: 0, name: "Zone 0 — Lobby", multiplier: 0.5,  requiredTime: 0,      z: 0,   color: 0x283046 },
+  { id: 1, name: "Zone 1 — Ember", multiplier: 1.5,  requiredTime: 100,    z: -15, color: 0x305a46 },
+  { id: 2, name: "Zone 2 — Flux",  multiplier: 2,    requiredTime: 1000,   z: -30, color: 0x5a3046 },
+  { id: 3, name: "Zone 3 — Rift",  multiplier: 4,    requiredTime: 10000,  z: -45, color: 0x46305a },
+  { id: 4, name: "Zone 4 — Nova",  multiplier: 7.5,  requiredTime: 100000, z: -60, color: 0x5a4630 },
+  { id: 5, name: "Zone 5 — Eclipse",multiplier: 10,  requiredTime: 1000000,z: -75, color: 0x305a7a }
 ];
+
+let currentZone = 0;
+let zoneMultiplier = zones[0].multiplier;
 
 // =========================
 // UTIL
 // =========================
-function format(n) {
-  if (n < 1000) return n.toFixed(2);
-  const units = [
-    { v: 1e12, s: "T" },
-    { v: 1e9, s: "B" },
-    { v: 1e6, s: "M" },
-    { v: 1e3, s: "K" }
-  ];
-  for (const u of units) {
-    if (n >= u.v) return (n / u.v).toFixed(2) + u.s;
+function randomId(len = 24) {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let out = "";
+  for (let i = 0; i < len; i++) {
+    out += chars[Math.floor(Math.random() * chars.length)];
   }
-  return n.toFixed(2);
+  return out;
+}
+
+function format(n) {
+  return Math.floor(n).toString();
+}
+
+function getEnchantBonusPercent() {
+  return enchantRanks[enchantRankIndex].bonus;
+}
+
+function getBaseTimePerSecond() {
+  return 1 * (1 + getEnchantBonusPercent() / 100);
 }
 
 function getTimePerSecond() {
-  return 1 + ren * 0.2;
+  return getBaseTimePerSecond() * zoneMultiplier;
+}
+
+// Weighted random rank
+function rollEnchantRankIndex() {
+  let total = 0;
+  enchantRanks.forEach(r => total += r.weight);
+  let r = Math.random() * total;
+  for (let i = 0; i < enchantRanks.length; i++) {
+    if (r < enchantRanks[i].weight) return i;
+    r -= enchantRanks[i].weight;
+  }
+  return enchantRanks.length - 1;
 }
 
 // =========================
-// SAVE SYSTEM (LOCAL)
+// SAVE SYSTEM
 // =========================
 function getSaveData() {
   return {
     timeValue,
     ren,
     totalPlaytime,
-    enchantCost,
     playerSaveName,
-    quests,
-    achievements
+    saveId,
+    enchantRankIndex,
+    enchantCost
   };
 }
 
@@ -101,34 +138,18 @@ function applySaveData(d) {
   timeValue = d.timeValue ?? 0;
   ren = d.ren ?? 0;
   totalPlaytime = d.totalPlaytime ?? 0;
-  enchantCost = d.enchantCost ?? 100;
   playerSaveName = d.playerSaveName ?? "";
+  saveId = d.saveId ?? saveId;
+  enchantRankIndex = d.enchantRankIndex ?? 0;
+  enchantCost = d.enchantCost ?? 10;
 
-  if (d.quests) {
-    d.quests.forEach((qSaved) => {
-      const q = quests.find((qq) => qq.id === qSaved.id);
-      if (q) q.done = !!qSaved.done;
-    });
-  }
-
-  if (d.achievements) {
-    d.achievements.forEach((aSaved) => {
-      const a = achievements.find((aa) => aa.id === aSaved.id);
-      if (a) a.unlocked = !!aSaved.unlocked;
-    });
-  }
-
-  enchantCostSpan.textContent = enchantCost.toString();
-  menuNameInput.value = playerSaveName;
-
+  playerNameInput.value = playerSaveName;
   updateHUD();
-  renderQuests();
-  renderAchievements();
+  updateEnchantUI();
 }
 
 function saveLocal() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(getSaveData()));
-  updateLocalLeaderboard();
 }
 
 function loadLocal() {
@@ -142,137 +163,172 @@ function loadLocal() {
   }
 }
 
-// Auto-save every second
+function initSaveId() {
+  const existing = localStorage.getItem(SAVE_ID_KEY);
+  if (existing) {
+    saveId = existing;
+  } else {
+    saveId = randomId(24);
+    localStorage.setItem(SAVE_ID_KEY, saveId);
+  }
+}
+
+// Auto-save + submit every second
 setInterval(() => {
   saveLocal();
+  submitScoreToServer();
 }, 1000);
 
 // =========================
-// LOCAL LEADERBOARD (NAME WALL)
+// BACK4APP / LEADERBOARD
 // =========================
-function updateLocalLeaderboard() {
-  const raw = localStorage.getItem(LEADERBOARD_KEY);
-  let board = [];
-  if (raw) {
-    try {
-      board = JSON.parse(raw);
-    } catch {
-      board = [];
-    }
+async function submitScoreToServer() {
+  if (!saveId) return;
+  if (typeof Parse === "undefined") return;
+
+  const Leaderboard = Parse.Object.extend("Leaderboard");
+  const query = new Parse.Query(Leaderboard);
+  query.equalTo("saveId", saveId);
+
+  let entry = await query.first();
+  if (!entry) {
+    entry = new Leaderboard();
+    entry.set("saveId", saveId);
   }
 
-  const existing = board.find((e) => e.name === playerSaveName && playerSaveName);
-  if (existing) {
-    existing.time = timeValue;
-    existing.playtime = totalPlaytime;
-  } else if (playerSaveName) {
-    board.push({
-      name: playerSaveName,
-      time: timeValue,
-      playtime: totalPlaytime
-    });
-  }
+  entry.set("saveName", playerSaveName || "Unnamed");
+  entry.set("currentTime", timeValue);
+  entry.set("playtime", totalPlaytime);
+  entry.set("timestamp", new Date());
 
-  board.sort((a, b) => b.time - a.time);
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
-  renderNameWall(board);
-}
-
-function loadLocalLeaderboard() {
-  const raw = localStorage.getItem(LEADERBOARD_KEY);
-  if (!raw) {
-    nameWallList.textContent = "No saves yet.";
-    return;
-  }
   try {
-    const board = JSON.parse(raw);
-    renderNameWall(board);
-  } catch {
-    nameWallList.textContent = "No saves yet.";
+    await entry.save();
+  } catch (e) {
+    console.error("Failed to submit score:", e);
   }
 }
 
-function renderNameWall(board) {
-  if (!board || !board.length) {
-    nameWallList.textContent = "No saves yet.";
+async function loadLeaderboard() {
+  if (typeof Parse === "undefined") {
+    nameWallList.textContent = "Online leaderboard unavailable.";
+    leaderboardList.textContent = "Online leaderboard unavailable.";
     return;
   }
-  let html = "";
-  board.forEach((entry, i) => {
-    html +=
-      (i + 1) +
-      ". " +
-      (entry.name || "Unnamed") +
-      " — Time: " +
-      format(entry.time || 0) +
-      " — Playtime: " +
-      ((entry.playtime || 0) / 60).toFixed(1) +
-      " min<br>";
-  });
-  nameWallList.innerHTML = html;
+
+  const Leaderboard = Parse.Object.extend("Leaderboard");
+  const query = new Parse.Query(Leaderboard);
+  query.descending("currentTime");
+  query.limit(200);
+
+  try {
+    const results = await query.find();
+    if (!results.length) {
+      nameWallList.textContent = "No saves yet.";
+      leaderboardList.textContent = "No saves yet.";
+      return;
+    }
+
+    let wallHtml = "";
+    let windowHtml = "";
+
+    results.forEach((obj, i) => {
+      const n = obj.get("saveName") || "Unnamed";
+      const t = obj.get("currentTime") || 0;
+      const p = obj.get("playtime") || 0;
+
+      const line =
+        (i + 1) +
+        ". " +
+        n +
+        " — Time: " +
+        format(t) +
+        " — Playtime: " +
+        Math.floor(p / 60) +
+        " min";
+
+      wallHtml += line + "<br>";
+      windowHtml += line + "<br>";
+    });
+
+    nameWallList.innerHTML = wallHtml;
+    leaderboardList.innerHTML = windowHtml;
+  } catch (e) {
+    console.error("Failed to load leaderboard:", e);
+    nameWallList.textContent = "Failed to load leaderboard.";
+    leaderboardList.textContent = "Failed to load leaderboard.";
+  }
 }
 
 // =========================
-// HUD + PROGRESSION UI
+// HUD & ENCHANT UI
 // =========================
 function updateHUD() {
   hudTime.textContent = "Time: " + format(timeValue);
   hudRen.textContent = "Ren: " + format(ren);
+  hudZone.textContent = `Zone: ${currentZone} (x${zoneMultiplier})`;
 }
 
-function renderQuests() {
-  questList.innerHTML = "";
-  quests.forEach((q) => {
-    const li = document.createElement("li");
-    li.textContent =
-      q.label +
-      " — Reward: " +
-      q.rewardRen +
-      " Ren — " +
-      (q.done ? "Completed" : "In progress");
-    questList.appendChild(li);
-  });
+function updatePortalInfo(text) {
+  hudPortalInfo.textContent = text || "";
 }
 
-function renderAchievements() {
-  achievementList.innerHTML = "";
-  achievements.forEach((a) => {
-    const li = document.createElement("li");
-    li.textContent = a.label + " — " + (a.unlocked ? "Unlocked" : "Locked");
-    achievementList.appendChild(li);
-  });
+function updateEnchantUI() {
+  const rank = enchantRanks[enchantRankIndex];
+  const bonus = rank.bonus;
+  const baseTPS = getBaseTimePerSecond();
+  const effectiveTPS = baseTPS * zoneMultiplier;
+
+  enchantRankLabel.textContent = rank.id;
+  enchantBonusLabel.textContent = bonus + "%";
+  enchantBaseTPSLabel.textContent = baseTPS.toFixed(2);
+  enchantZoneMultLabel.textContent = "x" + zoneMultiplier;
+  enchantEffectiveTPSLabel.textContent = effectiveTPS.toFixed(2);
+  enchantCostLabel.textContent = enchantCost.toString();
 }
 
 // =========================
 // BUTTON HANDLERS
 // =========================
 convertBtn.addEventListener("click", () => {
-  const cost = 100;
-  if (timeValue < cost) return;
-  timeValue -= cost;
-  ren += 1;
-  updateHUD();
+  if (timeValue >= 100) {
+    timeValue -= 100;
+    ren += 1;
+    updateHUD();
+  }
 });
 
-redeemCodeBtn.addEventListener("click", () => {
-  const code = codeInput.value.trim().toUpperCase();
-  if (!code) {
-    codeMessage.textContent = "Enter a code first.";
+openLeaderboardBtn.addEventListener("click", async () => {
+  openGUI(leaderboardWindow);
+  await loadLeaderboard();
+});
+
+leaderboardCloseBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
+leaderboardCloseBottomBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Escape") {
+    closeGUI(leaderboardWindow);
+    closeGUI(enchantWindow);
+  }
+});
+
+saveNameBtn.addEventListener("click", async () => {
+  const name = playerNameInput.value.trim();
+  if (!name) {
+    saveNameMessage.textContent = "Enter a name first.";
     return;
   }
 
-  if (code === "WELCOME") {
-    ren += 50;
-    codeMessage.textContent = "Code redeemed: +50 Ren.";
-  } else if (code === "BOOST") {
-    timeValue += 10000;
-    codeMessage.textContent = "Code redeemed: +10,000 Time.";
-  } else {
-    codeMessage.textContent = "Invalid or expired code.";
-  }
-
-  updateHUD();
+  playerSaveName = name;
+  saveNameMessage.textContent = "Name saved. Submitting score...";
+  saveLocal();
+  await submitScoreToServer();
+  await loadLeaderboard();
+  saveNameMessage.textContent = "Score submitted.";
 });
+
+enchantCloseBtn.addEventListener("click", () => closeGUI(enchantWindow));
+enchantCloseBottomBtn.addEventListener("click", () => closeGUI(enchantWindow));
 
 enchantBtn.addEventListener("click", () => {
   if (ren < enchantCost) {
@@ -280,58 +336,15 @@ enchantBtn.addEventListener("click", () => {
     return;
   }
   ren -= enchantCost;
-  enchantCost = Math.floor(enchantCost * 1.7);
-  enchantCostSpan.textContent = enchantCost.toString();
-  enchantMessage.textContent = "Enchant applied. Time/sec boosted.";
+  enchantCost = Math.floor(enchantCost * 1.8);
+
+  const oldRank = enchantRanks[enchantRankIndex].id;
+  enchantRankIndex = rollEnchantRankIndex();
+  const newRank = enchantRanks[enchantRankIndex].id;
+
+  enchantMessage.textContent = `Rolled: ${newRank} (was ${oldRank}).`;
+  updateEnchantUI();
   updateHUD();
-});
-
-menuNameBtn.addEventListener("click", () => {
-  const name = menuNameInput.value.trim();
-  if (!name) {
-    nameMessage.textContent = "Enter a name first.";
-    return;
-  }
-  playerSaveName = name;
-  nameMessage.textContent = "Name set/updated.";
-  saveLocal();
-});
-
-// =========================
-// CONTEXT MENU
-// =========================
-let menuOpen = false;
-
-function showPage(pageName) {
-  menuPages.forEach((page) => {
-    if (page.getAttribute("data-page") === pageName) {
-      page.classList.add("active");
-    } else {
-      page.classList.remove("active");
-    }
-  });
-}
-
-function openContextMenu(title, pageName) {
-  contextTitle.textContent = title;
-  showPage(pageName);
-  contextMenu.classList.remove("hidden");
-  menuOpen = true;
-}
-
-function closeContextMenu() {
-  contextMenu.classList.add("hidden");
-  menuOpen = false;
-}
-
-closeContextBtn.addEventListener("click", () => {
-  closeContextMenu();
-});
-
-document.addEventListener("keydown", (e) => {
-  if (e.code === "Escape" && menuOpen) {
-    closeContextMenu();
-  }
 });
 
 // =========================
@@ -350,95 +363,169 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   2000
 );
-camera.position.set(0, 1.8, 10);
+
+// Holder for yaw
+const cameraHolder = new THREE.Object3D();
+cameraHolder.position.set(0, 1.8, 5);
+scene.add(cameraHolder);
+cameraHolder.add(camera);
 
 // Lighting
-const hemi = new THREE.HemisphereLight(0xffffff, 0x202040, 0.9);
-scene.add(hemi);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x202040, 0.7));
 
 const dir = new THREE.DirectionalLight(0xfff4d2, 0.7);
 dir.position.set(40, 80, 20);
 scene.add(dir);
 
-// Floor
-function createFloor(size, color) {
-  const geo = new THREE.BoxGeometry(size, 1, size);
-  const mat = new THREE.MeshStandardMaterial({ color });
-  const floor = new THREE.Mesh(geo, mat);
-  floor.position.y = -0.5;
-  floor.receiveShadow = true;
-  return floor;
+// Room: floor + walls
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x1b1b2f });
+const floor = new THREE.Mesh(new THREE.BoxGeometry(40, 1, 100), floorMat);
+floor.position.set(0, -0.5, -40);
+scene.add(floor);
+
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x22263a });
+const leftWall = new THREE.Mesh(new THREE.BoxGeometry(1, 8, 100), wallMat);
+leftWall.position.set(-10, 3.5, -40);
+scene.add(leftWall);
+
+const rightWall = new THREE.Mesh(new THREE.BoxGeometry(1, 8, 100), wallMat);
+rightWall.position.set(10, 3.5, -40);
+scene.add(rightWall);
+
+const backWall = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 1), wallMat);
+backWall.position.set(0, 3.5, -90);
+scene.add(backWall);
+
+const frontWall = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 1), wallMat);
+frontWall.position.set(0, 3.5, 10);
+scene.add(frontWall);
+
+// Couches (yellow)
+function addCouch(x, z) {
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 0.8, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0xffd54f })
+  );
+  base.position.set(x, 0.4, z);
+  scene.add(base);
+
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 1, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0xffc107 })
+  );
+  back.position.set(x, 1.1, z - 0.45);
+  scene.add(back);
 }
+addCouch(-4, -10);
+addCouch(4, -10);
 
-const mainFloor = createFloor(80, 0x1b1b2f);
-scene.add(mainFloor);
+// Fake paintings
+function addPainting(x, z) {
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 1.5, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x111111 })
+  );
+  frame.position.set(x, 3.5, z);
+  scene.add(frame);
 
-// Simple walls
-function createWall(w, h, d, x, y, z, color) {
-  const geo = new THREE.BoxGeometry(w, h, d);
-  const mat = new THREE.MeshStandardMaterial({ color });
-  const wall = new THREE.Mesh(geo, mat);
-  wall.position.set(x, y, z);
-  scene.add(wall);
+  const art = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 1.2, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x3a7afe })
+  );
+  art.position.set(x, 3.5, z + 0.06);
+  scene.add(art);
 }
+addPainting(-6, -5);
+addPainting(6, -5);
 
-const wallHeight = 10;
-const roomSize = 80;
-createWall(roomSize, wallHeight, 1, 0, wallHeight / 2, -roomSize / 2, 0x151525);
-createWall(roomSize, wallHeight, 1, 0, wallHeight / 2, roomSize / 2, 0x151525);
-createWall(1, wallHeight, roomSize, -roomSize / 2, wallHeight / 2, 0, 0x151525);
-createWall(1, wallHeight, roomSize, roomSize / 2, wallHeight / 2, 0, 0x151525);
+// Ceiling lights
+function addCeilingLight(x, z) {
+  const bulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 16, 16),
+    new THREE.MeshStandardMaterial({
+      color: 0xfff2c2,
+      emissive: 0xffe08a,
+      emissiveIntensity: 0.9
+    })
+  );
+  bulb.position.set(x, 6.5, z);
+  scene.add(bulb);
 
-// Zone platforms
-function createZonePlatform(x, z, color) {
-  const geo = new THREE.CylinderGeometry(4, 4, 0.8, 20);
-  const mat = new THREE.MeshStandardMaterial({
-    color,
-    metalness: 0.2,
-    roughness: 0.6
+  const light = new THREE.PointLight(0xfff2c2, 1.2, 25);
+  light.position.set(x, 6.5, z);
+  scene.add(light);
+}
+addCeilingLight(0, -10);
+addCeilingLight(0, -30);
+addCeilingLight(0, -50);
+addCeilingLight(0, -70);
+
+// Zone portals (tunnel)
+const portalRadius = 2.5;
+const portalThickness = 0.4;
+const portals = [];
+
+zones.forEach((z, index) => {
+  const ringGeo = new THREE.TorusGeometry(portalRadius, portalThickness, 16, 32);
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: z.color,
+    emissive: z.color,
+    emissiveIntensity: 0.4,
+    metalness: 0.3,
+    roughness: 0.4
   });
-  const platform = new THREE.Mesh(geo, mat);
-  platform.position.set(x, 0, z);
-  scene.add(platform);
-}
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.y = Math.PI;
+  ring.position.set(0, 2.5, z.z);
+  scene.add(ring);
 
-createZonePlatform(0, 0, 0x283046);    // center
-createZonePlatform(20, 0, 0x30465a);   // zone 1
-createZonePlatform(-20, 0, 0x30465a);  // zone 2
-createZonePlatform(0, 20, 0x30465a);   // zone 3
-createZonePlatform(0, -20, 0x30465a);  // zone 4
+  portals.push({ zone: z, mesh: ring });
+});
 
-// Tables / interactables
-const interactables = [];
+// Enchant table near Zone 1
+const enchantTable = new THREE.Mesh(
+  new THREE.BoxGeometry(2.5, 1, 2.5),
+  new THREE.MeshStandardMaterial({ color: 0x8e2de2 })
+);
+enchantTable.position.set(-4, 0.5, zones[1].z);
+scene.add(enchantTable);
 
-function createInteractTable(x, y, z, type, color) {
-  const geo = new THREE.BoxGeometry(2.5, 1, 2.5);
-  const mat = new THREE.MeshStandardMaterial({ color });
-  const table = new THREE.Mesh(geo, mat);
-  table.position.set(x, y, z);
-  table.userData.type = type;
-  scene.add(table);
-  interactables.push(table);
-}
+// Small light above enchant table
+const enchantBulb = new THREE.Mesh(
+  new THREE.SphereGeometry(0.4, 16, 16),
+  new THREE.MeshStandardMaterial({
+    color: 0xd1c4e9,
+    emissive: 0xb39ddb,
+    emissiveIntensity: 0.9
+  })
+);
+enchantBulb.position.set(-4, 3, zones[1].z);
+scene.add(enchantBulb);
 
-// Center zone tables
-createInteractTable(3, 0.5, 0, "quests", 0x555555);
-createInteractTable(-3, 0.5, 0, "codes", 0x555555);
-createInteractTable(0, 0.5, 3, "achievements", 0x555555);
-createInteractTable(0, 0.5, -3, "name", 0x555555);
-
-// Enchant table in Zone 1
-createInteractTable(20, 0.5, 0, "enchant", 0x663399);
+const enchantLight = new THREE.PointLight(0xd1c4e9, 1.2, 15);
+enchantLight.position.set(-4, 3, zones[1].z);
+scene.add(enchantLight);
 
 // =========================
-// FPS CAMERA CONTROL
+// FPS CAMERA CONTROL + POINTER LOCK
 // =========================
 let yaw = 0;
 let pitch = 0;
+let pointerLocked = false;
+let menuOpen = false;
+
+canvas.addEventListener("click", () => {
+  if (!menuOpen) canvas.requestPointerLock();
+});
+
+document.addEventListener("pointerlockchange", () => {
+  pointerLocked = (document.pointerLockElement === canvas);
+});
 
 document.addEventListener("mousemove", (e) => {
-  const sensitivity = 0.002;
+  if (!pointerLocked) return;
 
+  const sensitivity = 0.002;
   yaw -= e.movementX * sensitivity;
   pitch -= e.movementY * sensitivity;
 
@@ -446,7 +533,8 @@ document.addEventListener("mousemove", (e) => {
   if (pitch > maxPitch) pitch = maxPitch;
   if (pitch < -maxPitch) pitch = -maxPitch;
 
-  camera.rotation.set(pitch, yaw, 0);
+  cameraHolder.rotation.y = yaw;
+  camera.rotation.x = pitch;
 });
 
 // =========================
@@ -456,18 +544,18 @@ const keys = {};
 document.addEventListener("keydown", (e) => {
   keys[e.code] = true;
 
-  if (e.code === "KeyE" && !menuOpen) {
-    if (currentInteract) {
-      const type = currentInteract.userData.type;
-      if (type === "quests") openContextMenu("Quest Book", "quests");
-      else if (type === "codes") openContextMenu("Codes Terminal", "codes");
-      else if (type === "achievements") openContextMenu("Achievements", "achievements");
-      else if (type === "enchant") openContextMenu("Enchant Table", "enchant");
-      else if (type === "name") openContextMenu("Name Desk", "name");
+  if (e.code === "KeyE" && pointerLocked) {
+    // Check if near enchant table
+    const dx = enchantTable.position.x - cameraHolder.position.x;
+    const dz = enchantTable.position.z - cameraHolder.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 4) {
+      openGUI(enchantWindow);
+      enchantMessage.textContent = "";
+      updateEnchantUI();
     }
   }
 });
-
 document.addEventListener("keyup", (e) => {
   keys[e.code] = false;
 });
@@ -476,12 +564,10 @@ let velocity = new THREE.Vector3();
 const moveSpeed = 10;
 const gravity = -30;
 let onGround = false;
+let lastSafePosition = cameraHolder.position.clone();
 
 function updateMovement(dt) {
-  if (menuOpen) {
-    velocity.set(0, 0, 0);
-    return;
-  }
+  if (!pointerLocked || menuOpen) return;
 
   let forward = 0;
   let right = 0;
@@ -491,13 +577,16 @@ function updateMovement(dt) {
   if (keys["KeyA"]) right -= 1;
   if (keys["KeyD"]) right += 1;
 
-  const dir = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
+  const dir = new THREE.Vector3();
+  cameraHolder.getWorldDirection(dir);
+  dir.y = 0;
+  dir.normalize();
+
   const rightDir = new THREE.Vector3(dir.z, 0, -dir.x);
 
   let move = new THREE.Vector3();
   move.addScaledVector(dir, forward);
   move.addScaledVector(rightDir, right);
-
   if (move.length() > 0) move.normalize();
 
   velocity.x = move.x * moveSpeed;
@@ -510,42 +599,87 @@ function updateMovement(dt) {
     onGround = false;
   }
 
-  camera.position.x += velocity.x * dt;
-  camera.position.z += velocity.z * dt;
-  camera.position.y += velocity.y * dt;
+  lastSafePosition.copy(cameraHolder.position);
 
-  if (camera.position.y <= 1.8) {
-    camera.position.y = 1.8;
+  cameraHolder.position.x += velocity.x * dt;
+  cameraHolder.position.z += velocity.z * dt;
+  cameraHolder.position.y += velocity.y * dt;
+
+  if (cameraHolder.position.y <= 1.8) {
+    cameraHolder.position.y = 1.8;
     velocity.y = 0;
     onGround = true;
   }
+
+  updateZoneAndPortals();
 }
 
 // =========================
-// INTERACTION DETECTION
+// ZONE & PORTAL LOGIC
 // =========================
-let currentInteract = null;
-const interactRadius = 3;
-
-function updateInteraction() {
-  currentInteract = null;
+function updateZoneAndPortals() {
+  let closestPortal = null;
   let closestDist = Infinity;
 
-  interactables.forEach((obj) => {
-    const dx = obj.position.x - camera.position.x;
-    const dz = obj.position.z - camera.position.z;
+  zones.forEach((z) => {
+    const dx = cameraHolder.position.x - 0;
+    const dz = cameraHolder.position.z - z.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
-    if (dist < interactRadius && dist < closestDist) {
+    if (dist < 4 && dist < closestDist) {
       closestDist = dist;
-      currentInteract = obj;
+      closestPortal = z;
     }
   });
 
-  if (currentInteract && !menuOpen) {
-    interactPrompt.classList.remove("hidden");
+  if (closestPortal) {
+    updatePortalInfo(
+      `${closestPortal.name} — Requires ${format(closestPortal.requiredTime)} Time`
+    );
   } else {
-    interactPrompt.classList.add("hidden");
+    updatePortalInfo("");
   }
+
+  let bestZone = zones[0];
+  let bestDist = Infinity;
+
+  zones.forEach((z) => {
+    const dx = cameraHolder.position.x - 0;
+    const dz = cameraHolder.position.z - z.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 3 && dist < bestDist) {
+      bestDist = dist;
+      bestZone = z;
+    }
+  });
+
+  if (bestZone.id !== currentZone) {
+    if (timeValue < bestZone.requiredTime) {
+      cameraHolder.position.copy(lastSafePosition);
+      enchantMessage.textContent = `Need ${format(bestZone.requiredTime)} Time to enter ${bestZone.name}.`;
+      return;
+    }
+    currentZone = bestZone.id;
+    zoneMultiplier = bestZone.multiplier;
+  }
+
+  updateHUD();
+  updateEnchantUI();
+}
+
+// =========================
+// GUI OPEN/CLOSE
+// =========================
+function openGUI(element) {
+  menuOpen = true;
+  element.classList.remove("hidden");
+  document.exitPointerLock();
+}
+
+function closeGUI(element) {
+  if (!element.classList.contains("hidden")) {
+    element.classList.add("hidden");
+  }
+  menuOpen = false;
 }
 
 // =========================
@@ -555,29 +689,8 @@ function hideLoadingScreen() {
   const loading = document.getElementById("loadingScreen");
   loading.classList.add("fadeOut");
   setTimeout(() => {
-    loading.style.display = "none";
+    loading.remove();
   }, 900);
-}
-
-// =========================
-// QUEST / ACHIEVEMENT CHECKS
-// =========================
-function updateQuestsAndAchievements() {
-  quests.forEach((q) => {
-    if (!q.done && timeValue >= q.target) {
-      q.done = true;
-      ren += q.rewardRen;
-    }
-  });
-
-  achievements.forEach((a) => {
-    if (!a.unlocked && a.condition()) {
-      a.unlocked = true;
-    }
-  });
-
-  renderQuests();
-  renderAchievements();
 }
 
 // =========================
@@ -591,11 +704,8 @@ function mainLoop(now) {
   timeValue += getTimePerSecond() * dt;
   updateHUD();
   updateMovement(dt);
-  updateInteraction();
-  updateQuestsAndAchievements();
 
   renderer.render(scene, camera);
-
   requestAnimationFrame(mainLoop);
 }
 
@@ -603,18 +713,14 @@ function mainLoop(now) {
 // INIT
 // =========================
 function init() {
+  initSaveId();
   loadLocal();
-  loadLocalLeaderboard();
   updateHUD();
-  renderQuests();
-  renderAchievements();
+  updateEnchantUI();
+  loadLeaderboard();
 
   lastTick = performance.now();
-
-  setTimeout(() => {
-    hideLoadingScreen();
-  }, 1200);
-
+  setTimeout(hideLoadingScreen, 1200);
   requestAnimationFrame(mainLoop);
 }
 
