@@ -68,12 +68,12 @@ let enchantCost = 10;
 // Zones: tunnel with portals
 // multipliers: 0:0.5, 1:1.5, 2:2, 3:4, 4:7.5, 5:10
 const zones = [
-  { id: 0, name: "Zone 0 — Lobby", multiplier: 0.5,  requiredTime: 0,      z: 0,   color: 0x283046 },
-  { id: 1, name: "Zone 1 — Ember", multiplier: 1.5,  requiredTime: 100,    z: -15, color: 0x305a46 },
-  { id: 2, name: "Zone 2 — Flux",  multiplier: 2,    requiredTime: 1000,   z: -30, color: 0x5a3046 },
-  { id: 3, name: "Zone 3 — Rift",  multiplier: 4,    requiredTime: 10000,  z: -45, color: 0x46305a },
-  { id: 4, name: "Zone 4 — Nova",  multiplier: 7.5,  requiredTime: 100000, z: -60, color: 0x5a4630 },
-  { id: 5, name: "Zone 5 — Eclipse",multiplier: 10,  requiredTime: 1000000,z: -75, color: 0x305a7a }
+  { id: 0, name: "Zone 0 — Lobby",   multiplier: 0.5,  requiredTime: 0,      z: 0,   color: 0x283046 },
+  { id: 1, name: "Zone 1 — Ember",   multiplier: 1.5,  requiredTime: 100,    z: -15, color: 0x305a46 },
+  { id: 2, name: "Zone 2 — Flux",    multiplier: 2,    requiredTime: 1000,   z: -30, color: 0x5a3046 },
+  { id: 3, name: "Zone 3 — Rift",    multiplier: 4,    requiredTime: 10000,  z: -45, color: 0x46305a },
+  { id: 4, name: "Zone 4 — Nova",    multiplier: 7.5,  requiredTime: 100000, z: -60, color: 0x5a4630 },
+  { id: 5, name: "Zone 5 — Eclipse", multiplier: 10,   requiredTime: 1000000,z: -75, color: 0x305a7a }
 ];
 
 let currentZone = 0;
@@ -465,7 +465,7 @@ const portalRadius = 2.5;
 const portalThickness = 0.4;
 const portals = [];
 
-zones.forEach((z, index) => {
+zones.forEach((z) => {
   const ringGeo = new THREE.TorusGeometry(portalRadius, portalThickness, 16, 32);
   const ringMat = new THREE.MeshStandardMaterial({
     color: z.color,
@@ -545,7 +545,6 @@ document.addEventListener("keydown", (e) => {
   keys[e.code] = true;
 
   if (e.code === "KeyE" && pointerLocked) {
-    // Check if near enchant table
     const dx = enchantTable.position.x - cameraHolder.position.x;
     const dz = enchantTable.position.z - cameraHolder.position.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
