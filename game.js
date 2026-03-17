@@ -31,8 +31,17 @@ const enchantBaseTPSLabel = document.getElementById("enchantBaseTPSLabel");
 const enchantZoneMultLabel = document.getElementById("enchantZoneMultLabel");
 const enchantEffectiveTPSLabel = document.getElementById("enchantEffectiveTPSLabel");
 const enchantCostLabel = document.getElementById("enchantCostLabel");
+const enchantRollsLabel = document.getElementById("enchantRollsLabel");
 const enchantBtn = document.getElementById("enchantBtn");
 const enchantMessage = document.getElementById("enchantMessage");
+
+const npcWindow = document.getElementById("npcWindow");
+const npcTitle = document.getElementById("npcTitle");
+const npcText = document.getElementById("npcText");
+const npcGiveTimeBtn = document.getElementById("npcGiveTimeBtn");
+const npcTakeTimeBtn = document.getElementById("npcTakeTimeBtn");
+const npcCloseBtn = document.getElementById("npcCloseBtn");
+const npcCloseBottomBtn = document.getElementById("npcCloseBottomBtn");
 
 // =========================
 // GAME STATE
@@ -42,11 +51,15 @@ let ren = 0;
 let totalPlaytime = 0;
 let lastTick = performance.now();
 
-const SAVE_KEY = "time_remastered_back4app_save_v3";
-const SAVE_ID_KEY = "time_remastered_back4app_id_v3";
+const SAVE_KEY = "time_remastered_back4app_save_v4";
+const SAVE_ID_KEY = "time_remastered_back4app_id_v4";
 
 let saveId = "";
 let playerSaveName = "";
+
+// rolls system
+let rolls = 0;
+let rollTimer = 0; // seconds
 
 // Enchant ranks F → N
 const enchantRanks = [
@@ -63,10 +76,8 @@ const enchantRanks = [
 ];
 
 let enchantRankIndex = 0;
-let enchantCost = 10;
 
 // Zones: tunnel with portals
-// boosts: zone0 x0.5, zone1 x1.5, zone2 x2, zone3 x4, zone4 x7.5, zone5 x10
 const zones = [
   { id: 0, name: "Zone 0 — Lobby",   multiplier: 0.5,  requiredTime: 0,      z: 0,   color: 0x283046 },
   { id: 1, name: "Zone 1 — Ember",   multiplier: 1.5,  requiredTime: 100,    z: -15, color: 0x305a46 },
@@ -129,7 +140,8 @@ function getSaveData() {
     playerSaveName,
     saveId,
     enchantRankIndex,
-    enchantCost
+    rolls,
+    rollTimer
   };
 }
 
@@ -140,7 +152,8 @@ function applySaveData(d) {
   playerSaveName = d.playerSaveName ?? "";
   saveId = d.saveId ?? saveId;
   enchantRankIndex = d.enchantRankIndex ?? 0;
-  enchantCost = d.enchantCost ?? 10;
+  rolls = d.rolls ?? 0;
+  rollTimer = d.rollTimer ?? 0;
 
   playerNameInput.value = playerSaveName;
   updateHUD();
@@ -282,41 +295,48 @@ function updateEnchantUI() {
   enchantBaseTPSLabel.textContent = baseTPS.toFixed(2);
   enchantZoneMultLabel.textContent = "x" + zoneMultiplier;
   enchantEffectiveTPSLabel.textContent = effectiveTPS.toFixed(2);
-  enchantCostLabel.textContent = enchantCost.toString();
+  enchantCostLabel.textContent = "1 Roll";
+  enchantRollsLabel.textContent = rolls.toString();
 }
 
 // =========================
-// GUI SYSTEM (CLEAN + FIXED)
+// GUI SYSTEM
 // =========================
 let menuOpen = false;
 
 function openGUI(element) {
+  if (!element) return;
   menuOpen = true;
   element.classList.remove("hidden");
   document.exitPointerLock();
 }
 
 function closeGUI(element) {
-  if (!element.classList.contains("hidden")) {
-    element.classList.add("hidden");
-  }
+  if (!element) return;
+  element.classList.add("hidden");
   menuOpen = false;
 }
 
-// Close on ESC
+function bindCloseButton(btn, win) {
+  if (btn && win) {
+    btn.addEventListener("click", () => closeGUI(win));
+  }
+}
+
+bindCloseButton(leaderboardCloseBtn, leaderboardWindow);
+bindCloseButton(leaderboardCloseBottomBtn, leaderboardWindow);
+bindCloseButton(enchantCloseBtn, enchantWindow);
+bindCloseButton(enchantCloseBottomBtn, enchantWindow);
+bindCloseButton(npcCloseBtn, npcWindow);
+bindCloseButton(npcCloseBottomBtn, npcWindow);
+
 document.addEventListener("keydown", (e) => {
   if (e.code === "Escape") {
     closeGUI(leaderboardWindow);
     closeGUI(enchantWindow);
+    closeGUI(npcWindow);
   }
 });
-
-// X / Close buttons
-leaderboardCloseBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
-leaderboardCloseBottomBtn.addEventListener("click", () => closeGUI(leaderboardWindow));
-
-enchantCloseBtn.addEventListener("click", () => closeGUI(enchantWindow));
-enchantCloseBottomBtn.addEventListener("click", () => closeGUI(enchantWindow));
 
 // =========================
 // BUTTON HANDLERS
@@ -335,7 +355,7 @@ openLeaderboardBtn.addEventListener("click", async () => {
 });
 
 saveNameBtn.addEventListener("click", async () => {
-  const name = playerNameInput.value.trim();
+  const name = playerSaveNameInputValue();
   if (!name) {
     saveNameMessage.textContent = "Enter a name first.";
     return;
@@ -349,13 +369,16 @@ saveNameBtn.addEventListener("click", async () => {
   saveNameMessage.textContent = "Score submitted.";
 });
 
+function playerSaveNameInputValue() {
+  return playerNameInput.value.trim();
+}
+
 enchantBtn.addEventListener("click", () => {
-  if (ren < enchantCost) {
-    enchantMessage.textContent = "Not enough Ren.";
+  if (rolls < 1) {
+    enchantMessage.textContent = "You need 1 roll (5 minutes of playtime).";
     return;
   }
-  ren -= enchantCost;
-  enchantCost = Math.floor(enchantCost * 1.8);
+  rolls -= 1;
 
   const oldRank = enchantRanks[enchantRankIndex].id;
   enchantRankIndex = rollEnchantRankIndex();
@@ -363,6 +386,24 @@ enchantBtn.addEventListener("click", () => {
 
   enchantMessage.textContent = `Rolled: ${newRank} (was ${oldRank}).`;
   updateEnchantUI();
+  updateHUD();
+});
+
+npcGiveTimeBtn.addEventListener("click", () => {
+  if (timeValue >= 100) {
+    timeValue -= 100;
+    ren += 2;
+    npcText.textContent = `${currentNPC?.userData.npcName || "NPC"}: Thanks! I turned 100 Time into 2 Ren.`;
+    updateHUD();
+  } else {
+    npcText.textContent = `${currentNPC?.userData.npcName || "NPC"}: You don't have 100 Time.`;
+  }
+});
+
+npcTakeTimeBtn.addEventListener("click", () => {
+  timeValue += 100;
+  ren = Math.max(0, ren - 1);
+  npcText.textContent = `${currentNPC?.userData.npcName || "NPC"}: I gave you 100 Time, took 1 Ren.`;
   updateHUD();
 });
 
@@ -383,7 +424,6 @@ const camera = new THREE.PerspectiveCamera(
   2000
 );
 
-// Holder for yaw
 const cameraHolder = new THREE.Object3D();
 cameraHolder.position.set(0, 1.8, 5);
 scene.add(cameraHolder);
@@ -525,14 +565,152 @@ enchantLight.position.set(-4, 3, zones[1].z);
 scene.add(enchantLight);
 
 // =========================
-// FIXED FPS CAMERA + POINTER LOCK
+// R15 BLOCKY HYBRID NPCs
+// =========================
+const npcs = [];
+let currentNPC = null;
+
+function createR15NPC(name, x, z, color = 0x4caf50) {
+  const group = new THREE.Group();
+  group.userData.npcName = name;
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color });
+
+  // Torso
+  const torso = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 2.2, 0.8),
+    bodyMat
+  );
+  torso.position.set(0, 2.2, 0);
+  group.add(torso);
+
+  // Head
+  const head = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 1.2, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0xffe0b2 })
+  );
+  head.position.set(0, 3.5, 0);
+  group.add(head);
+
+  // Face (simple)
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x000000 });
+  const eyeGeo = new THREE.BoxGeometry(0.1, 0.15, 0.02);
+
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeL.position.set(-0.25, 3.6, 0.61);
+  group.add(eyeL);
+
+  const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeR.position.set(0.25, 3.6, 0.61);
+  group.add(eyeR);
+
+  const mouth = new THREE.Mesh(
+    new THREE.BoxGeometry(0.4, 0.08, 0.02),
+    eyeMat
+  );
+  mouth.position.set(0, 3.35, 0.61);
+  group.add(mouth);
+
+  // Arms (upper + lower)
+  const upperArmGeo = new THREE.BoxGeometry(0.5, 0.9, 0.5);
+  const lowerArmGeo = new THREE.BoxGeometry(0.45, 0.9, 0.45);
+
+  const leftUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
+  leftUpperArm.position.set(-1.15, 2.4, 0);
+  group.add(leftUpperArm);
+
+  const leftLowerArm = new THREE.Mesh(lowerArmGeo, bodyMat);
+  leftLowerArm.position.set(-1.15, 1.5, 0);
+  group.add(leftLowerArm);
+
+  const rightUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
+  rightUpperArm.position.set(1.15, 2.4, 0);
+  group.add(rightUpperArm);
+
+  const rightLowerArm = new THREE.Mesh(lowerArmGeo, bodyMat);
+  rightLowerArm.position.set(1.15, 1.5, 0);
+  group.add(rightLowerArm);
+
+  // Legs (upper + lower)
+  const upperLegGeo = new THREE.BoxGeometry(0.7, 1.0, 0.7);
+  const lowerLegGeo = new THREE.BoxGeometry(0.65, 1.0, 0.65);
+
+  const leftUpperLeg = new THREE.Mesh(upperLegGeo, bodyMat);
+  leftUpperLeg.position.set(-0.5, 1.0, 0);
+  group.add(leftUpperLeg);
+
+  const leftLowerLeg = new THREE.Mesh(lowerLegGeo, bodyMat);
+  leftLowerLeg.position.set(-0.5, 0.1, 0);
+  group.add(leftLowerLeg);
+
+  const rightUpperLeg = new THREE.Mesh(upperLegGeo, bodyMat);
+  rightUpperLeg.position.set(0.5, 1.0, 0);
+  group.add(rightUpperLeg);
+
+  const rightLowerLeg = new THREE.Mesh(lowerLegGeo, bodyMat);
+  rightLowerLeg.position.set(0.5, 0.1, 0);
+  group.add(rightLowerLeg);
+
+  // Name tag
+  const nameSprite = createNameSprite(name);
+  nameSprite.position.set(0, 4.3, 0);
+  group.add(nameSprite);
+
+  group.position.set(x, 0, z);
+  scene.add(group);
+  npcs.push(group);
+  return group;
+}
+
+function createNameSprite(text) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "28px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(3, 0.8, 1);
+  return sprite;
+}
+
+// NPC instances
+createR15NPC("Chrono Guide", 6, -8, 0x4caf50);
+createR15NPC("Time Trader", -6, -25, 0x2196f3);
+
+// =========================
+// NPC DIALOG
+// =========================
+function openNPCDialog(npc) {
+  currentNPC = npc;
+  npcTitle.textContent = npc.userData.npcName || "NPC";
+  npcText.textContent = `${npc.userData.npcName || "NPC"}: Hey, want to trade Time and Ren?`;
+  openGUI(npcWindow);
+}
+
+// =========================
+// FPS CAMERA + POINTER LOCK
 // =========================
 let yaw = 0;
 let pitch = 0;
 let pointerLocked = false;
 
 canvas.addEventListener("click", () => {
-  if (!menuOpen) canvas.requestPointerLock();
+  if (!pointerLocked && !menuOpen) {
+    canvas.requestPointerLock();
+    return;
+  }
+  if (pointerLocked && !menuOpen) {
+    interactRaycast();
+  }
 });
 
 document.addEventListener("pointerlockchange", () => {
@@ -684,6 +862,25 @@ function updateZoneAndPortals() {
 }
 
 // =========================
+// INTERACTION RAYCAST (NPC)
+// =========================
+const raycaster = new THREE.Raycaster();
+
+function interactRaycast() {
+  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+  const intersects = raycaster.intersectObjects(npcs, true);
+  if (intersects.length > 0) {
+    let npcGroup = intersects[0].object;
+    while (npcGroup && !npcGroup.userData.npcName && npcGroup.parent) {
+      npcGroup = npcGroup.parent;
+    }
+    if (npcGroup && npcGroup.userData.npcName) {
+      openNPCDialog(npcGroup);
+    }
+  }
+}
+
+// =========================
 // LOADING SCREEN
 // =========================
 function hideLoadingScreen() {
@@ -708,7 +905,16 @@ function mainLoop(now) {
 
   totalPlaytime += dt;
   timeValue += getTimePerSecond() * dt;
+
+  // rolls: 1 every 5 minutes
+  rollTimer += dt;
+  if (rollTimer >= 300) {
+    rolls += 1;
+    rollTimer = 0;
+  }
+
   updateHUD();
+  updateEnchantUI();
   updateMovement(dt);
 
   renderer.render(scene, camera);
