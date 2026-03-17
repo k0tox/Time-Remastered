@@ -42,12 +42,10 @@ let totalPlaytime = 0;
 let enchantCost = 100;
 enchantCostSpan.textContent = enchantCost.toString();
 
-const SAVE_KEY = "time_remastered_full_save_v1";
-const SAVE_ID_KEY = "time_remastered_full_save_id_v1";
+const SAVE_KEY = "time_remastered_full_local_v1";
+const LEADERBOARD_KEY = "time_remastered_leaderboard_v1";
 
-let saveId = "";
 let playerSaveName = "";
-
 let lastTick = performance.now();
 
 // Quests / Achievements
@@ -66,15 +64,6 @@ const achievements = [
 // =========================
 // UTIL
 // =========================
-function randomId(len = 24) {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let out = "";
-  for (let i = 0; i < len; i++) {
-    out += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return out;
-}
-
 function format(n) {
   if (n < 1000) return n.toFixed(2);
   const units = [
@@ -90,12 +79,11 @@ function format(n) {
 }
 
 function getTimePerSecond() {
-  // Base + Ren scaling + enchant effect (implicit via Ren)
   return 1 + ren * 0.2;
 }
 
 // =========================
-// SAVE SYSTEM
+// SAVE SYSTEM (LOCAL)
 // =========================
 function getSaveData() {
   return {
@@ -104,7 +92,6 @@ function getSaveData() {
     totalPlaytime,
     enchantCost,
     playerSaveName,
-    saveId,
     quests,
     achievements
   };
@@ -116,7 +103,6 @@ function applySaveData(d) {
   totalPlaytime = d.totalPlaytime ?? 0;
   enchantCost = d.enchantCost ?? 100;
   playerSaveName = d.playerSaveName ?? "";
-  saveId = d.saveId ?? saveId;
 
   if (d.quests) {
     d.quests.forEach((qSaved) => {
@@ -142,6 +128,7 @@ function applySaveData(d) {
 
 function saveLocal() {
   localStorage.setItem(SAVE_KEY, JSON.stringify(getSaveData()));
+  updateLocalLeaderboard();
 }
 
 function loadLocal() {
@@ -155,100 +142,74 @@ function loadLocal() {
   }
 }
 
-function initSaveId() {
-  const existing = localStorage.getItem(SAVE_ID_KEY);
-  if (existing) {
-    saveId = existing;
-  } else {
-    saveId = randomId(24);
-    localStorage.setItem(SAVE_ID_KEY, saveId);
-  }
-}
-
 // Auto-save every second
 setInterval(() => {
   saveLocal();
-  submitScoreToServer();
 }, 1000);
 
 // =========================
-// BACK4APP / LEADERBOARD
+// LOCAL LEADERBOARD (NAME WALL)
 // =========================
-async function submitScoreToServer() {
-  if (!saveId) return;
-  if (typeof Parse === "undefined") return;
-
-  const Leaderboard = Parse.Object.extend("Leaderboard");
-  const query = new Parse.Query(Leaderboard);
-  query.equalTo("saveId", saveId);
-
-  let entry = await query.first();
-  if (!entry) {
-    entry = new Leaderboard();
-    entry.set("saveId", saveId);
+function updateLocalLeaderboard() {
+  const raw = localStorage.getItem(LEADERBOARD_KEY);
+  let board = [];
+  if (raw) {
+    try {
+      board = JSON.parse(raw);
+    } catch {
+      board = [];
+    }
   }
 
-  entry.set("saveName", playerSaveName || "Unnamed");
-  entry.set("currentTime", timeValue);
-  entry.set("playtime", totalPlaytime);
-  entry.set("timestamp", new Date());
-
-  try {
-    await entry.save();
-  } catch (e) {
-    console.error("Failed to submit score:", e);
+  const existing = board.find((e) => e.name === playerSaveName && playerSaveName);
+  if (existing) {
+    existing.time = timeValue;
+    existing.playtime = totalPlaytime;
+  } else if (playerSaveName) {
+    board.push({
+      name: playerSaveName,
+      time: timeValue,
+      playtime: totalPlaytime
+    });
   }
+
+  board.sort((a, b) => b.time - a.time);
+  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(board));
+  renderNameWall(board);
 }
 
-async function isNameTakenByOther(name) {
-  if (typeof Parse === "undefined") return false;
-  const Leaderboard = Parse.Object.extend("Leaderboard");
-  const query = new Parse.Query(Leaderboard);
-  query.equalTo("saveName", name);
-  query.notEqualTo("saveId", saveId);
-  const result = await query.first();
-  return !!result;
-}
-
-async function loadNameWall() {
-  if (typeof Parse === "undefined") {
-    nameWallList.textContent = "Online leaderboard unavailable.";
+function loadLocalLeaderboard() {
+  const raw = localStorage.getItem(LEADERBOARD_KEY);
+  if (!raw) {
+    nameWallList.textContent = "No saves yet.";
     return;
   }
-
-  const Leaderboard = Parse.Object.extend("Leaderboard");
-  const query = new Parse.Query(Leaderboard);
-  query.descending("currentTime");
-  query.limit(200);
-
   try {
-    const results = await query.find();
-    if (!results.length) {
-      nameWallList.textContent = "No saves yet.";
-      return;
-    }
-
-    let html = "";
-    results.forEach((obj, i) => {
-      const n = obj.get("saveName") || "Unnamed";
-      const t = obj.get("currentTime") || 0;
-      const p = obj.get("playtime") || 0;
-      html +=
-        (i + 1) +
-        ". " +
-        n +
-        " — Time: " +
-        format(t) +
-        " — Playtime: " +
-        (p / 60).toFixed(1) +
-        " min<br>";
-    });
-
-    nameWallList.innerHTML = html;
-  } catch (e) {
-    console.error("Failed to load name wall:", e);
-    nameWallList.textContent = "Failed to load leaderboard.";
+    const board = JSON.parse(raw);
+    renderNameWall(board);
+  } catch {
+    nameWallList.textContent = "No saves yet.";
   }
+}
+
+function renderNameWall(board) {
+  if (!board || !board.length) {
+    nameWallList.textContent = "No saves yet.";
+    return;
+  }
+  let html = "";
+  board.forEach((entry, i) => {
+    html +=
+      (i + 1) +
+      ". " +
+      (entry.name || "Unnamed") +
+      " — Time: " +
+      format(entry.time || 0) +
+      " — Playtime: " +
+      ((entry.playtime || 0) / 60).toFixed(1) +
+      " min<br>";
+  });
+  nameWallList.innerHTML = html;
 }
 
 // =========================
@@ -325,27 +286,15 @@ enchantBtn.addEventListener("click", () => {
   updateHUD();
 });
 
-async function handleNameChange(name) {
+menuNameBtn.addEventListener("click", () => {
+  const name = menuNameInput.value.trim();
   if (!name) {
     nameMessage.textContent = "Enter a name first.";
     return;
   }
-  const taken = await isNameTakenByOther(name);
-  if (taken) {
-    nameMessage.textContent = "That name is already taken.";
-    return;
-  }
   playerSaveName = name;
-  menuNameInput.value = name;
   nameMessage.textContent = "Name set/updated.";
   saveLocal();
-  await submitScoreToServer();
-  await loadNameWall();
-}
-
-menuNameBtn.addEventListener("click", async () => {
-  const name = menuNameInput.value.trim();
-  await handleNameChange(name);
 });
 
 // =========================
@@ -401,7 +350,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   2000
 );
-camera.position.set(0, 1.8, 0);
+camera.position.set(0, 1.8, 10);
 
 // Lighting
 const hemi = new THREE.HemisphereLight(0xffffff, 0x202040, 0.9);
@@ -409,7 +358,6 @@ scene.add(hemi);
 
 const dir = new THREE.DirectionalLight(0xfff4d2, 0.7);
 dir.position.set(40, 80, 20);
-dir.castShadow = true;
 scene.add(dir);
 
 // Floor
@@ -422,30 +370,28 @@ function createFloor(size, color) {
   return floor;
 }
 
-const mainFloor = createFloor(200, 0x1b1b2f);
+const mainFloor = createFloor(80, 0x1b1b2f);
 scene.add(mainFloor);
 
-// Walls
+// Simple walls
 function createWall(w, h, d, x, y, z, color) {
   const geo = new THREE.BoxGeometry(w, h, d);
   const mat = new THREE.MeshStandardMaterial({ color });
   const wall = new THREE.Mesh(geo, mat);
   wall.position.set(x, y, z);
-  wall.receiveShadow = true;
-  wall.castShadow = true;
   scene.add(wall);
 }
 
-const wallHeight = 20;
-const roomSize = 200;
-createWall(roomSize, wallHeight, 2, 0, wallHeight / 2, -roomSize / 2, 0x151525);
-createWall(roomSize, wallHeight, 2, 0, wallHeight / 2, roomSize / 2, 0x151525);
-createWall(2, wallHeight, roomSize, -roomSize / 2, wallHeight / 2, 0, 0x151525);
-createWall(2, wallHeight, roomSize, roomSize / 2, wallHeight / 2, 0, 0x151525);
+const wallHeight = 10;
+const roomSize = 80;
+createWall(roomSize, wallHeight, 1, 0, wallHeight / 2, -roomSize / 2, 0x151525);
+createWall(roomSize, wallHeight, 1, 0, wallHeight / 2, roomSize / 2, 0x151525);
+createWall(1, wallHeight, roomSize, -roomSize / 2, wallHeight / 2, 0, 0x151525);
+createWall(1, wallHeight, roomSize, roomSize / 2, wallHeight / 2, 0, 0x151525);
 
 // Zone platforms
 function createZonePlatform(x, z, color) {
-  const geo = new THREE.CylinderGeometry(10, 10, 1, 24);
+  const geo = new THREE.CylinderGeometry(4, 4, 0.8, 20);
   const mat = new THREE.MeshStandardMaterial({
     color,
     metalness: 0.2,
@@ -453,21 +399,20 @@ function createZonePlatform(x, z, color) {
   });
   const platform = new THREE.Mesh(geo, mat);
   platform.position.set(x, 0, z);
-  platform.receiveShadow = true;
   scene.add(platform);
 }
 
 createZonePlatform(0, 0, 0x283046);    // center
-createZonePlatform(50, 0, 0x30465a);   // zone 1
-createZonePlatform(-50, 0, 0x30465a);  // zone 2
-createZonePlatform(0, 50, 0x30465a);   // zone 3
-createZonePlatform(0, -50, 0x30465a);  // zone 4
+createZonePlatform(20, 0, 0x30465a);   // zone 1
+createZonePlatform(-20, 0, 0x30465a);  // zone 2
+createZonePlatform(0, 20, 0x30465a);   // zone 3
+createZonePlatform(0, -20, 0x30465a);  // zone 4
 
 // Tables / interactables
 const interactables = [];
 
 function createInteractTable(x, y, z, type, color) {
-  const geo = new THREE.BoxGeometry(3, 1, 3);
+  const geo = new THREE.BoxGeometry(2.5, 1, 2.5);
   const mat = new THREE.MeshStandardMaterial({ color });
   const table = new THREE.Mesh(geo, mat);
   table.position.set(x, y, z);
@@ -477,43 +422,13 @@ function createInteractTable(x, y, z, type, color) {
 }
 
 // Center zone tables
-createInteractTable(5, 0.5, 0, "quests", 0x555555);
-createInteractTable(-5, 0.5, 0, "codes", 0x555555);
-createInteractTable(0, 0.5, 5, "settings", 0x555555); // reserved
-createInteractTable(0, 0.5, -5, "achievements", 0x555555);
-createInteractTable(-8, 0.5, -8, "name", 0x555555);
+createInteractTable(3, 0.5, 0, "quests", 0x555555);
+createInteractTable(-3, 0.5, 0, "codes", 0x555555);
+createInteractTable(0, 0.5, 3, "achievements", 0x555555);
+createInteractTable(0, 0.5, -3, "name", 0x555555);
 
 // Enchant table in Zone 1
-createInteractTable(50, 0.5, 0, "enchant", 0x663399);
-
-// Lamps
-function addLamp(x, z) {
-  const poleGeo = new THREE.CylinderGeometry(0.2, 0.2, 6, 12);
-  const poleMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-  const pole = new THREE.Mesh(poleGeo, poleMat);
-  pole.position.set(x, 3, z);
-  pole.castShadow = true;
-  scene.add(pole);
-
-  const headGeo = new THREE.SphereGeometry(0.7, 16, 16);
-  const headMat = new THREE.MeshStandardMaterial({
-    color: 0xfff2c2,
-    emissive: 0xffe08a,
-    emissiveIntensity: 0.8
-  });
-  const head = new THREE.Mesh(headGeo, headMat);
-  head.position.set(x, 6.5, z);
-  head.castShadow = true;
-  scene.add(head);
-
-  const light = new THREE.PointLight(0xfff2c2, 1.2, 30);
-  light.position.set(x, 6.5, z);
-  scene.add(light);
-}
-
-addLamp(0, 0);
-addLamp(40, 30);
-addLamp(-35, -25);
+createInteractTable(20, 0.5, 0, "enchant", 0x663399);
 
 // =========================
 // FPS CAMERA CONTROL
@@ -558,7 +473,7 @@ document.addEventListener("keyup", (e) => {
 });
 
 let velocity = new THREE.Vector3();
-const moveSpeed = 12;
+const moveSpeed = 10;
 const gravity = -30;
 let onGround = false;
 
@@ -591,7 +506,7 @@ function updateMovement(dt) {
   velocity.y += gravity * dt;
 
   if (keys["Space"] && onGround) {
-    velocity.y = 14;
+    velocity.y = 12;
     onGround = false;
   }
 
@@ -610,7 +525,7 @@ function updateMovement(dt) {
 // INTERACTION DETECTION
 // =========================
 let currentInteract = null;
-const interactRadius = 4;
+const interactRadius = 3;
 
 function updateInteraction() {
   currentInteract = null;
@@ -687,13 +602,12 @@ function mainLoop(now) {
 // =========================
 // INIT
 // =========================
-async function init() {
-  initSaveId();
+function init() {
   loadLocal();
+  loadLocalLeaderboard();
   updateHUD();
   renderQuests();
   renderAchievements();
-  await loadNameWall();
 
   lastTick = performance.now();
 
