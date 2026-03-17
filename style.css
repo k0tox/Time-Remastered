@@ -105,8 +105,7 @@ body {
   display: none;
 }
 
-#leaderboardWindow,
-#enchantWindow {
+.overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
@@ -116,8 +115,7 @@ body {
   z-index: 50;
 }
 
-#leaderboardInner,
-#enchantInner {
+.window {
   width: 420px;
   max-width: 90vw;
   max-height: 80vh;
@@ -130,22 +128,19 @@ body {
   flex-direction: column;
 }
 
-#leaderboardHeader,
-#enchantHeader {
+.window-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
 
-#leaderboardHeader span,
-#enchantHeader span {
+.window-header span {
   font-size: 18px;
   font-weight: 600;
 }
 
-#leaderboardCloseBtn,
-#enchantCloseBtn {
+.window-close {
   border: none;
   background: transparent;
   color: #aaa;
@@ -153,11 +148,11 @@ body {
   cursor: pointer;
 }
 
-#leaderboardCloseBtn:hover,
-#enchantCloseBtn:hover {
+.window-close:hover {
   color: #fff;
 }
 
+/* Leaderboard sections */
 .lb-section {
   margin-top: 10px;
   margin-bottom: 12px;
@@ -248,6 +243,37 @@ body {
 
 #enchantBtn:hover {
   filter: brightness(1.1);
+}
+
+/* NPC Window */
+.npc-text {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.npc-buttons {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.npc-buttons button {
+  flex: 1;
+  border-radius: 999px;
+  border: none;
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#npcGiveTimeBtn {
+  background: #3a7afe;
+  color: #fff;
+}
+
+#npcTakeTimeBtn {
+  background: #ff7043;
+  color: #fff;
 }
 
 /* Loading Screen */
