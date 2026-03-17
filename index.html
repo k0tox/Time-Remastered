@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <!-- Loading Screen -->
   <div id="loadingScreen">
     <div id="loadingBox">
@@ -20,8 +21,11 @@
 
   <!-- HUD -->
   <div id="hud">
+    <span id="hudTitle">Time Remastered</span>
     <span id="hudTime">Time: 0</span>
     <span id="hudRen">Ren: 0</span>
+    <span id="hudZone">Zone: 0 (x0.5)</span>
+    <span id="hudPortalInfo"></span>
   </div>
 
   <!-- Conversion Panel -->
@@ -30,63 +34,91 @@
     <div id="convertHint">Converts 100 Time into 1 Ren</div>
   </div>
 
-  <!-- Interact Prompt -->
-  <div id="interactPrompt" class="hidden">Press E</div>
+  <!-- Top Buttons -->
+  <button id="openLeaderboardBtn">Leaderboard</button>
 
   <!-- Name Wall -->
   <div id="nameWall">
-    <div id="nameWallTitle">Name Wall</div>
-    <div id="nameWallList">No saves yet.</div>
+    <div id="nameWallTitle">Global Leaderboard</div>
+    <div id="nameWallList">Loading...</div>
   </div>
 
-  <!-- Context Menu / GUIs -->
-  <div id="contextMenu" class="hidden">
-    <div id="contextInner">
-      <div id="contextHeader">
-        <span id="contextTitle">Menu</span>
-        <button id="closeContextBtn">✕</button>
+  <!-- Leaderboard Window -->
+  <div id="leaderboardWindow" class="hidden">
+    <div id="leaderboardInner">
+      <div id="leaderboardHeader">
+        <span>Time Remastered — Leaderboard & Save</span>
+        <button id="leaderboardCloseBtn">✕</button>
       </div>
 
-      <!-- Pages -->
-      <div class="menu-page" data-page="quests">
-        <h2>Quests</h2>
-        <p>Reach certain Time milestones to earn Ren.</p>
-        <ul id="questList"></ul>
+      <div class="lb-section">
+        <h3>Your Save</h3>
+        <label for="playerNameInput">Public Name</label>
+        <input id="playerNameInput" placeholder="Enter your name" />
+        <button id="saveNameBtn">Save Name & Submit Score</button>
+        <div id="saveNameMessage" class="lb-message"></div>
       </div>
 
-      <div class="menu-page" data-page="codes">
-        <h2>Codes</h2>
-        <p>Redeem special codes for rewards.</p>
-        <input id="codeInput" placeholder="Enter code" />
-        <button id="redeemCodeBtn">Redeem</button>
-        <div id="codeMessage" class="menuMessage"></div>
+      <div class="lb-section">
+        <h3>Top Players</h3>
+        <div id="leaderboardList">Loading...</div>
       </div>
 
-      <div class="menu-page" data-page="enchant">
-        <h2>Enchant</h2>
-        <p>Spend Ren to boost Time/sec.</p>
-        <div>Current Enchant Cost: <span id="enchantCost">100</span> Ren</div>
-        <button id="enchantBtn">Enchant</button>
-        <div id="enchantMessage" class="menuMessage"></div>
-      </div>
-
-      <div class="menu-page" data-page="achievements">
-        <h2>Achievements</h2>
-        <ul id="achievementList"></ul>
-      </div>
-
-      <div class="menu-page" data-page="name">
-        <h2>Save Name</h2>
-        <p>Set a public name for your save.</p>
-        <input id="menuNameInput" placeholder="Save Name" />
-        <button id="menuNameBtn">Set / Change Name</button>
-        <div class="menuMessage" id="nameMessage"></div>
-        <div class="menuSubNote">Leaderboard is stored locally on this device.</div>
-      </div>
+      <button id="leaderboardCloseBottomBtn" class="lb-close-bottom">Close</button>
     </div>
   </div>
 
+  <!-- Enchant Window -->
+  <div id="enchantWindow" class="hidden">
+    <div id="enchantInner">
+      <div id="enchantHeader">
+        <span>Time Remastered — Enchant Table</span>
+        <button id="enchantCloseBtn">✕</button>
+      </div>
+
+      <p>Roll for an enchant rank. Higher ranks give huge Time/sec boosts.</p>
+
+      <div class="enchant-row">
+        <span>Enchant Rank:</span>
+        <span id="enchantRankLabel">F</span>
+      </div>
+      <div class="enchant-row">
+        <span>Enchant Bonus:</span>
+        <span id="enchantBonusLabel">0%</span>
+      </div>
+      <div class="enchant-row">
+        <span>Base Time/sec:</span>
+        <span id="enchantBaseTPSLabel">1</span>
+      </div>
+      <div class="enchant-row">
+        <span>Current Zone Multiplier:</span>
+        <span id="enchantZoneMultLabel">x0.5</span>
+      </div>
+      <div class="enchant-row">
+        <span>Effective Time/sec:</span>
+        <span id="enchantEffectiveTPSLabel">0</span>
+      </div>
+      <div class="enchant-row">
+        <span>Next Enchant Cost:</span>
+        <span id="enchantCostLabel">10</span> Ren
+      </div>
+
+      <button id="enchantBtn">Roll Enchant</button>
+      <div id="enchantMessage" class="lb-message"></div>
+
+      <button id="enchantCloseBottomBtn" class="lb-close-bottom">Close</button>
+    </div>
+  </div>
+
+  <!-- Parse / Back4App -->
+  <script src="https://unpkg.com/parse/dist/parse.min.js"></script>
+  <script>
+    Parse.initialize("ogmS1bciV4vu7ela41MyzbNUKPUCWv72WDv7iMn9", "5GdY7Bdj7OQHEBVYqJic0tnofKCMqITehVKhiapM");
+    Parse.serverURL = "https://parseapi.back4app.com/";
+  </script>
+
+  <!-- Three.js + Game -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-  <script src="game.js"></script>
+  <script src="game.js?v=5000"></script>
 </body>
 </html>
