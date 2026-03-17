@@ -114,7 +114,10 @@
   <script src="https://unpkg.com/parse/dist/parse.min.js"></script>
   <script>
     try {
-      Parse.initialize("ogmS1bciV4vu7ela41MyzbNUKPUCWv72WDv7iMn9", "5GdY7Bdj7OQHEBVYqJic0tnofKCMqITehVKhiapM");
+      Parse.initialize(
+        "ogmS1bciV4vu7ela41MyzbNUKPUCWv72WDv7iMn9",
+        "5GdY7Bdj7OQHEBVYqJic0tnofKCMqITehVKhiapM"
+      );
       Parse.serverURL = "https://parseapi.back4app.com/";
     } catch (e) {
       console.error("Parse init failed:", e);
