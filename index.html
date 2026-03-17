@@ -36,7 +36,7 @@
   <!-- Name Wall -->
   <div id="nameWall">
     <div id="nameWallTitle">Name Wall</div>
-    <div id="nameWallList">Loading...</div>
+    <div id="nameWallList">No saves yet.</div>
   </div>
 
   <!-- Context Menu / GUIs -->
@@ -77,22 +77,14 @@
 
       <div class="menu-page" data-page="name">
         <h2>Save Name</h2>
-        <p>Set a unique public name for your save.</p>
-        <input id="menuNameInput" placeholder="Save Name (unique)" />
+        <p>Set a public name for your save.</p>
+        <input id="menuNameInput" placeholder="Save Name" />
         <button id="menuNameBtn">Set / Change Name</button>
         <div class="menuMessage" id="nameMessage"></div>
-        <div class="menuSubNote">Your secret Save ID is stored locally.</div>
+        <div class="menuSubNote">Leaderboard is stored locally on this device.</div>
       </div>
     </div>
   </div>
-
-  <!-- Parse / Back4App -->
-  <script src="https://unpkg.com/parse/dist/parse.min.js"></script>
-  <script>
-    // TODO: replace with your real Back4App keys
-    Parse.initialize("YOUR_APP_ID", "YOUR_JS_KEY");
-    Parse.serverURL = "https://parseapi.back4app.com/";
-  </script>
 
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
   <script src="game.js"></script>
