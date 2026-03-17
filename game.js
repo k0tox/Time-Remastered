@@ -62,7 +62,7 @@ const enchantRanks = [
   { id: "N",  bonus: 2599, weight: 0.5 }
 ];
 
-let enchantRankIndex = 0; // start at F
+let enchantRankIndex = 0;
 let enchantCost = 10;
 
 // Zones: tunnel with portals
@@ -107,7 +107,6 @@ function getTimePerSecond() {
   return getBaseTimePerSecond() * zoneMultiplier;
 }
 
-// Weighted random rank
 function rollEnchantRankIndex() {
   let total = 0;
   enchantRanks.forEach(r => total += r.weight);
@@ -400,7 +399,7 @@ const frontWall = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 1), wallMat);
 frontWall.position.set(0, 3.5, 10);
 scene.add(frontWall);
 
-// Couches (yellow)
+// Couches
 function addCouch(x, z) {
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(3, 0.8, 1.2),
@@ -419,7 +418,7 @@ function addCouch(x, z) {
 addCouch(-4, -10);
 addCouch(4, -10);
 
-// Fake paintings
+// Paintings
 function addPainting(x, z) {
   const frame = new THREE.Mesh(
     new THREE.BoxGeometry(2.5, 1.5, 0.1),
@@ -460,7 +459,7 @@ addCeilingLight(0, -30);
 addCeilingLight(0, -50);
 addCeilingLight(0, -70);
 
-// Zone portals (tunnel)
+// Portals
 const portalRadius = 2.5;
 const portalThickness = 0.4;
 const portals = [];
@@ -482,7 +481,7 @@ zones.forEach((z) => {
   portals.push({ zone: z, mesh: ring });
 });
 
-// Enchant table near Zone 1
+// Enchant table
 const enchantTable = new THREE.Mesh(
   new THREE.BoxGeometry(2.5, 1, 2.5),
   new THREE.MeshStandardMaterial({ color: 0x8e2de2 })
@@ -490,7 +489,6 @@ const enchantTable = new THREE.Mesh(
 enchantTable.position.set(-4, 0.5, zones[1].z);
 scene.add(enchantTable);
 
-// Small light above enchant table
 const enchantBulb = new THREE.Mesh(
   new THREE.SphereGeometry(0.4, 16, 16),
   new THREE.MeshStandardMaterial({
@@ -507,7 +505,7 @@ enchantLight.position.set(-4, 3, zones[1].z);
 scene.add(enchantLight);
 
 // =========================
-// FPS CAMERA CONTROL + POINTER LOCK
+// FPS CAMERA + POINTER LOCK
 // =========================
 let yaw = 0;
 let pitch = 0;
@@ -686,9 +684,12 @@ function closeGUI(element) {
 // =========================
 function hideLoadingScreen() {
   const loading = document.getElementById("loadingScreen");
+  if (!loading) return;
   loading.classList.add("fadeOut");
   setTimeout(() => {
-    loading.remove();
+    if (loading && loading.parentNode) {
+      loading.parentNode.removeChild(loading);
+    }
   }, 900);
 }
 
