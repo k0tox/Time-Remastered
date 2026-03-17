@@ -113,12 +113,16 @@
   <!-- Parse / Back4App -->
   <script src="https://unpkg.com/parse/dist/parse.min.js"></script>
   <script>
-    Parse.initialize("ogmS1bciV4vu7ela41MyzbNUKPUCWv72WDv7iMn9", "5GdY7Bdj7OQHEBVYqJic0tnofKCMqITehVKhiapM");
-    Parse.serverURL = "https://parseapi.back4app.com/";
+    try {
+      Parse.initialize("ogmS1bciV4vu7ela41MyzbNUKPUCWv72WDv7iMn9", "5GdY7Bdj7OQHEBVYqJic0tnofKCMqITehVKhiapM");
+      Parse.serverURL = "https://parseapi.back4app.com/";
+    } catch (e) {
+      console.error("Parse init failed:", e);
+    }
   </script>
 
   <!-- Three.js + Game -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-  <script src="game.js?v=5000"></script>
+  <script src="game.js"></script>
 </body>
 </html>
